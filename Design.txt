@@ -1,0 +1,69 @@
+So I'd like to make a simple ray tracer with these features:
+
+- CPU
+- Interactive
+- Controllable Camera Pinhole
+- Sphere & Triangle intersections
+- Point Lights (Area Lights in future)
+- Shadows
+- Light scattering
+- Anti-Aliasing
+
+
+Scene
+	geometry[]
+	lights[]
+
+Geometry
+	position
+	scale
+	rotation
+	primatives[]
+
+Primitive
+	albedo
+	rougness
+	opacity?
+
+Sphere : Primitive
+	radius
+	position
+
+Triangle
+	vertices[]
+
+Light
+	pos
+	color
+
+Camera
+	pos
+	up-dir
+	forward-dir
+	fov
+
+Window
+	buffer
+
+Image
+	width
+	height
+	pixels[]
+
+Intersection
+	ray*
+	source*
+	intersectedGeometry*
+	t
+	intersectionPos
+
+render(Camera, Scene, Image)	// renders scene to Image
+	for pixels in Image
+		cast ray from camera in direction of pixel using FOV
+		calculate color of pixel using intersection
+
+castRay(Ray, Scene)	=> Intersection
+
+calculateColor(Intersection) => Color
+
+
