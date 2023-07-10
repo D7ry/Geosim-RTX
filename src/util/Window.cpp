@@ -12,8 +12,8 @@ Window::Window(int width, int height, const std::string& title)
     window{ sf::VideoMode(width, height), title, sf::Style::Close }
 {
     // sprite should always be located at 0,0
-    s.setPosition({ 0,0 });
-    
+    s.setPosition({ 0, 0 });
+    //s.setScale({ -1.f, 1.f });  // flip vertically
     resize();
 }
 
@@ -70,7 +70,7 @@ void Window::setBuffer(const Image& img)
     // iterate through every pixel in img
     for (int i = 0; i < imgDim; ++i)
     {
-        const Colorf& color{ img.pixels[i] };
+        const glm::vec4& color{ img.pixels[i] };
 
         pixels[(i * 4) + 0] = (sf::Uint8)(std::clamp(color.r, 0.f, 1.f) * 255);
         pixels[(i * 4) + 1] = (sf::Uint8)(std::clamp(color.g, 0.f, 1.f) * 255);

@@ -1,5 +1,8 @@
 
+#include "Camera.h"
 #include "Image.h"
+#include "Renderer.h"
+#include "Scene.h"
 
 #include "util/Window.h"
 
@@ -10,25 +13,23 @@ int main()
 
     Window window{ WIN_W, WIN_H, "Rodent-Raytracer" };
 
-    Image img{ WIN_W, WIN_H };
+    Image image{ WIN_W, WIN_H };
 
-    for (int y = 0; y < img.height; ++y)
-        for (int x = 0; x < img.width; ++x)
-        {
-            const unsigned index{ (y * img.width) + x };
+    Scene scene;
+    scene.geometry.push_back(Geometry{});   // scene is one unit sphere about origin
 
-            img.pixels[index].r = (float)(x) / img.width;
-            img.pixels[index].g = (float)(y) / img.height;
-            img.pixels[index].b = 0.f;
-            img.pixels[index].a = 1.f;
-        }
-
+    Renderer renderer;
+    Camera camera;
+    
     while (window.isOpen())
     {
         window.update();
 
+        // render scene to image
+        renderer.render(scene, camera, image);
+
         window.clear();
-        window.setBuffer(img);
+        window.setBuffer(image);
         window.display();
     }
 
