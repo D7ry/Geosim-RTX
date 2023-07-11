@@ -5,9 +5,9 @@
 
 struct Camera
 {
-	glm::vec4 position{ 0, 0, 0, 1 };
-	glm::vec4 forwardDir{ 0, 0, -1, 1 };
-	glm::vec4 upDir{ 0, 1, 0, 1 };
+	glm::vec3 position{ 0.f };
+	glm::vec3 forwardDir{ 0.f, 0.f, -1.f };	// looking into screen
+	glm::vec3 upDir{ 0.f, 1.f, 0.f };
 
-	float FOV{ 0.78539816339 };	// pi/4, 45 deg
+	float FOV{ glm::half_pi<float>() };	// reminder, FOV is not the angle from the horizontal, but twice that
 };

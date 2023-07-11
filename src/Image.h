@@ -3,7 +3,6 @@
 #include <glm/glm.hpp>
 
 #include <vector>
-#include <algorithm>
 
 struct Image
 {
@@ -19,16 +18,15 @@ struct Image
 		pixels{ width * height }
 	{}
 
-	// sets pixel in image using normalized device coordinates
-	void setPixel(const glm::vec2& coord, const glm::vec4& pixel)
+	void setPixel(const glm::vec2& ndc, const glm::vec4& pixelData)
 	{
 		glm::uvec2 pixelCoord{
-			((coord.x + 1) / 2) * width,	// x
-			((coord.y + 1) / 2) * height	// y
+			ndc.x * width,
+			ndc.y * height
 		};
 
-		int index = pixelCoord.x + (pixelCoord.y * height);
+		int index = pixelCoord.x + (pixelCoord.y * width);
 
-		pixels[index] = pixel;
+		pixels[index] = pixelData;
 	}
 };

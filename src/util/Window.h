@@ -9,7 +9,7 @@ struct Image;
 class Window
 {
 public:
-	Window(int width, int height, const std::string& title);
+	Window(int width, int height, int scale, const std::string& title);
 
 	void update();
 
@@ -31,6 +31,8 @@ private:
 	// buffer will be displayed through sprite
 	sf::Sprite s;
 
+	int scale{ 1 };
+
 private:
-	void resize();
+	void onResize();
 };

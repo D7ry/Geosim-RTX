@@ -7,14 +7,15 @@
 #include <algorithm>
 #include <iostream>
 
-Window::Window(int width, int height, const std::string& title)
+Window::Window(int width, int height, int scale, const std::string& title)
     :
-    window{ sf::VideoMode(width, height), title, sf::Style::Close }
+    window{ sf::VideoMode(width * scale, height * scale), title, sf::Style::Close },
+    scale{ scale }
 {
     // sprite should always be located at 0,0
     s.setPosition({ 0, 0 });
-    //s.setScale({ -1.f, 1.f });  // flip vertically
-    resize();
+    s.setScale(sf::Vector2f( scale, scale ));
+    onResize();
 }
 
 void Window::update()
@@ -32,7 +33,7 @@ void Window::update()
             break;
 
         case Event::Resized:
-            resize();
+            onResize();
             break;
 
         default:
@@ -56,7 +57,7 @@ void Window::setBuffer(const Image& img)
     };
 
     // todo make resizeable
-    assert(sameSize);
+    //assert(sameSize);
 
     const size_t imgDim{ img.pixels.size() };
 
@@ -105,12 +106,12 @@ const sf::Vector2u& Window::getDim() const
     return window.getSize();
 }
 
-void Window::resize()
+void Window::onResize()
 {
-    unsigned width{  getDim().x };
+    unsigned width{  getDim().x  };
     unsigned height{ getDim().y };
 
-    buffer.create(width, height);
+    buffer.create(width / scale, height / scale);
     
     s.setTexture(buffer, true);
 }
