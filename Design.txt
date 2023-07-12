@@ -4,7 +4,7 @@ So I'd like to make a simple ray tracer with these features:
 - Interactive
 - Controllable Camera Pinhole
 - Sphere & Triangle intersections
-- Point Lights (Area Lights in future)
+- Emissive Materials
 - Shadows
 - Light scattering
 - Anti-Aliasing
@@ -12,10 +12,11 @@ So I'd like to make a simple ray tracer with these features:
 Renderer
 	render()
 	perPixel()
+	traceRay()
+	checkRayIntersection()
 
 Scene
 	geometry[]
-	lights[]
 
 Geometry
 	position
@@ -23,21 +24,25 @@ Geometry
 	rotation
 	primatives[]
 
-Primitive
-	albedo
+Material
+	color
 	rougness
 	opacity?
+	
+	emissonColor
+	emissionStrength
+
+Primitive
+	material
+
+	virtual getNormal()
 
 Sphere : Primitive
 	radius
 	position
 
-Triangle
-	vertices[]
-
-Light
-	pos
-	color
+Triangle : Primitive
+	vertices[3]
 
 Camera
 	pos
@@ -53,20 +58,58 @@ Image
 	height
 	pixels[]
 
-Intersection
+Ray Intersection
 	ray*
-	source*
-	intersectedGeometry*
+	intersectedPrimitive*
 	t
 	intersectionPos
 
+Math
+	raySphereIntersection(Ray, Sphere) => Ray Intersection
+	rayIntersection(Ray, Sphere) => Ray Intersection
+
 render(Camera, Scene, Image)	// renders scene to Image
 	for pixels in Image
-		cast ray from camera in direction of pixel using FOV
-		calculate color of pixel using intersection
+		for rays per pixel
+			calculate ray position and direction
+			send it out	// traceRay()
+			average colors
 
-castRay(Ray, Scene)	=> Intersection
+// (taken from Sebastian Lague)
+traceRay(Ray, Scene) => Color	// cast ray out into scene and trace it
+	
+	incoming light = nothing (0, black)	// light going on the the camera / what the camera sees
+	ray color = white (1)
 
-calculateColor(Intersection) => Color
+	for maxNumBounces
+		check for intersection	// checkRayIntersection
 
+		if ray hit
+			light emitted from surface color = surface emission color * surface emission strength	// my surfaces material
+			light strength = dot(surface normal, ray direction)	// by angle of surface to ray
+			incoming light += emitted light * ray color
+			color *= material color * light strength
+			
+			position ray at intersection
+			randomize direction within hemisphere
+		else
+			incoming light +=  environmental light * ray color
+			break
 
+	return incoming light
+
+checkRayIntersection(Ray, Scene) => Ray Intersection
+	
+	intersection = null
+
+	for objects in geometry
+		for primitive in object
+			transform primitive into world space
+			
+			if sphere
+				test = do ray-sphere intersection test
+			if triangle
+				test = do ray-triangle intersection test
+
+			if test result is valid and closer than intersection
+				intersection = test
