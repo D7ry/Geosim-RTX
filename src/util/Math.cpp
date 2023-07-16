@@ -10,10 +10,8 @@ Ray::Ray(const glm::vec3& origin, const glm::vec3& dir)
 	dir{ glm::normalize(dir) }
 {}
 
-double Math::rng()
+double Math::rng(unsigned state)
 {
-	static unsigned state{ 0 };
-
 	state *= (state + 340147) * (state + 1273128) * (state + 782243);
 
 	return state / (double)std::numeric_limits<unsigned>::max();

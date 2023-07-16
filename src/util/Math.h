@@ -16,7 +16,7 @@ struct RayIntersection
 {
 	const Ray ray;
 	const float t;
-	const glm::vec3 position;
+	glm::vec3 position;
 	const glm::vec3 surfaceNormal;
 };
 
@@ -27,8 +27,8 @@ class Math
 
 public:
 
-	// bad random number generation function which returns normalized double
-	static double rng();
+	// bad random number generation function which returns normalized double [0,1]
+	static double rng(unsigned state);
 
 	static std::optional<RayIntersection> raySphereIntersection(
 		Ray ray, 

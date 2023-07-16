@@ -21,23 +21,31 @@ int main()
     Geometry object;    // scene will have one object
     Sphere s;           // object is made up of primitives (three spheres)
 
-    s.position = { 0.f, 1.f, 0.f };   // here is one sphere (head)
+    // head
+    s.position = { 0.f, 1.f, 0.f };
     s.radius = .5;
-    object.add(s);                     // add primitive to object
+    s.material.color = { 1,0,0,1 };
+    object.add(s);
 
-    s.position = { 0.f, 0.f, 0.f };   // here is a second sphere (middle)
+   // middle
+    s.position = { 0.f, 0.f, 0.f };
     s.radius = .7;
-    object.add(s);                     // add primitive to object
+    s.material.color = { 0,1,0,1 };
+    object.add(s);
 
-    s.position = { 0.f, -1.1f, 0.f }; // here is the last sphere (bottom)
+    // bottom
+    s.position = { 0.f, -1.1f, 0.f }; 
     s.radius = .9;
-    object.add(s);                     // add primitive to object
+    s.material.color = { 0,0,1,1 };
+    object.add(s);
 
+    // add one instance of obj to scene
     object.position = { 0, 0, -5 };
-    scene.add(object);  // add object to the geometry of the scene
+    scene.add(object);
 
+    // add another, positioned elsewhere
     object.position = { 3, 1, -4 };
-    scene.add(object);  // add object to the geometry of the scene
+    scene.add(object);
 
     Renderer renderer;
     Camera camera;
