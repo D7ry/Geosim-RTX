@@ -1,13 +1,19 @@
 So I'd like to make a simple ray tracer with these features:
 
 - CPU
-- Interactive
-- Controllable Camera Pinhole
+- "Interactive"
+- Controllable Camera
 - Sphere & Triangle intersections
-- Emissive Materials
+- Emissive Materials / Area Lights
 - Shadows
+- Can easily plug in different diffuse models
 - Light scattering
 - Anti-Aliasing
+
+(for the next ray tracer):
+- Accelerated spacial structures
+- GPU/CUDA/RTX
+- Realtime
 
 Renderer
 	render()

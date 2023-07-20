@@ -16,6 +16,8 @@ Window::Window(int width, int height, int scale, const std::string& title)
     s.setPosition({ 0, 0 });
     s.setScale(sf::Vector2f( scale, scale ));
     onResize();
+
+    window.setMouseCursorVisible(false);
 }
 
 void Window::update()

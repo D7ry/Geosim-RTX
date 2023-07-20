@@ -25,20 +25,24 @@ void Renderer::render(const Scene& scene, const Camera& camera, Image& image)
 				(y + 0.5f) / image.height
 			};
 
-			static constexpr int RAYS_PER_PIXEL{ 1 };
-
 			glm::vec4 pixelColor{ 0.f };
+
+			static constexpr int RAYS_PER_PIXEL{ 1 };
+			static constexpr bool USE_RNG_FOR_AA{ true };
 
 			for (int i = 0; i < RAYS_PER_PIXEL; ++i)
 			{
-				const float rayOffset{
-					((2.f * i) + 1.f) / (RAYS_PER_PIXEL * 2.f)
-				};
+				glm::vec2 rayOffset;
+
+				if constexpr (USE_RNG_FOR_AA)
+					rayOffset = Math::rngVec2(i);
+				else
+					rayOffset = glm::vec2{ ((2.f * i) + 1.f) / (RAYS_PER_PIXEL * 2.f) };
 
 				const glm::vec2 ndcAliased
 				{
-					(x + rayOffset) / image.width,
-					(y + rayOffset) / image.height
+					(x + rayOffset.x) / image.width,
+					(y + rayOffset.y) / image.height
 				};
 
 				// screen space
@@ -47,9 +51,17 @@ void Renderer::render(const Scene& scene, const Camera& camera, Image& image)
 					1.f - (2.f * ndcAliased.y) * fovComponent		// flip vertically so +y is up
 				};
 
+				// ray coords in world space
+				glm::vec4 start{ camera.position, 1.f };
+				glm::vec4 dir{ coord.x, coord.y, -1.f, 1.f };
+				
+				// turn ray coords in view space
+				//start = start * camera.viewMat;
+				dir = dir * camera.viewMat;
+
 				Ray ray{
-					camera.position,
-					glm::vec3{ coord.x, coord.y, -1.f }
+					start, //camera.position,
+					dir //glm::vec3{ coord.x, coord.y, -1.f }
 				};
 
 				pixelColor += traceRay(ray, scene);
@@ -76,10 +88,10 @@ glm::vec4 Renderer::perPixel(const Scene& scene, const Camera& camera, const glm
 			/// todo: i think something is wrong with the positioning, need to check
 			// create ray
 			Ray ray{ 
-				camera.position, 
+				glm::vec3{0},
 				glm::vec3{ coord.x, coord.y, -1.f } 
 			};
-			
+
 			const auto hitCheck = primitive.checkRayIntersection(ray, object.position);
 
 			if (hitCheck.has_value())

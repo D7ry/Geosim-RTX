@@ -17,6 +17,16 @@ double Math::rng(unsigned state)
 	return state / (double)std::numeric_limits<unsigned>::max();
 }
 
+glm::vec2 Math::rngVec2(unsigned state)
+{
+	return glm::vec2(rng(state), rng(state+1<<1));
+}
+
+glm::vec3 Math::rngVec3(unsigned state)
+{
+	return glm::vec3(rng(state), rng(state + 1 << 1), rng(state + 2 << 2));
+}
+
 std::optional<RayIntersection> Math::raySphereIntersection(
 	Ray ray, 
 	const glm::vec3& pos, 

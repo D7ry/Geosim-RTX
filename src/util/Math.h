@@ -1,8 +1,10 @@
 #pragma once
 
+#include <array>
 #include <optional>
 
 #include <glm/vec3.hpp>
+#include <glm/mat4x4.hpp>
 
 struct Ray
 {
@@ -30,6 +32,9 @@ public:
 	// bad random number generation function which returns normalized double [0,1]
 	static double rng(unsigned state);
 
+	static glm::vec2 rngVec2(unsigned state);
+	static glm::vec3 rngVec3(unsigned state);
+
 	static std::optional<RayIntersection> raySphereIntersection(
 		Ray ray, 
 		const glm::vec3& pos, 
@@ -51,5 +56,10 @@ public:
 	static glm::vec3 sphereNormal(const glm::vec3& origin, const glm::vec3& point);
 
 	static glm::vec3 triangleNormal(const glm::vec3 const vertices[3]);
+
+	typedef std::array<glm::vec3, 3> Vertices;
+
+	static Vertices transform(const Vertices& v, const glm::mat4& m);
+	static glm::vec3 transform(const glm::vec3& v, const glm::mat4& m);
 
 };
