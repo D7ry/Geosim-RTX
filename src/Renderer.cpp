@@ -117,7 +117,7 @@ glm::vec4 Renderer::traceRay(Ray ray, const Scene& scene)
 
 	static constexpr int MAX_NUM_BOUNCES{ 4 };
 
-	for (int i = 0; i < MAX_NUM_BOUNCES; ++i)
+	for (int i = 0; i <= MAX_NUM_BOUNCES; ++i)
 	{
 		auto potentialIntersection = getClosestIntersection(ray, scene);
 	
