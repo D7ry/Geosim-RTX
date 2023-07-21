@@ -11,6 +11,8 @@
 #include <SFML/Window/Keyboard.hpp>
 #include <SFML/Window/Mouse.hpp>
 
+#include <SFML/System/Time.hpp>
+
 // settings and controls
 static constexpr sf::Keyboard::Key FORWARD{ sf::Keyboard::Key::W };
 static constexpr sf::Keyboard::Key BACKWARD{ sf::Keyboard::Key::S };
@@ -32,18 +34,26 @@ static constexpr float MOUSE_SENSITIVITY{ 1.5f };
 
 static constexpr bool INTERACTIVE_MODE{ 1 };
 
-static constexpr unsigned WINDOW_WIDTH{ 16 << (INTERACTIVE_MODE ? 3 : 5) };
-static constexpr unsigned WINDOW_HEIGHT{ 9 << (INTERACTIVE_MODE ? 3 : 5) };
+static constexpr unsigned WINDOW_WIDTH{ 16 << (INTERACTIVE_MODE ? 3 : 6) };
+static constexpr unsigned WINDOW_HEIGHT{ 9 << (INTERACTIVE_MODE ? 3 : 6) };
 static constexpr unsigned WINDOW_SCALE{  1 << (INTERACTIVE_MODE ? 3 : 1) };
 
 int main()
 {
-    Window window{ 
-        WINDOW_WIDTH, 
-        WINDOW_HEIGHT, 
-        WINDOW_SCALE, 
-        "Rodent-Raytracer" 
-    };
+    sf::Clock timer;
+    timer.restart();
+
+    Window* window{ nullptr };
+    
+    if constexpr (INTERACTIVE_MODE)
+    {
+        window = new Window{
+           WINDOW_WIDTH,
+           WINDOW_HEIGHT,
+           WINDOW_SCALE,
+           "Rodent-Raytracer"
+        };
+    }
 
     Image image{ WINDOW_WIDTH, WINDOW_HEIGHT };
 
@@ -83,7 +93,7 @@ int main()
         Geometry floor;
 
         s.radius = 1000;
-        s.material.color = { 0.8f, 0.8f, 1.f, 1.f };
+        s.material.color = { 0.7f, 0.7f, 1.f, 1.f };
 
         floor.add(s);
         floor.position = { 0, -1001, 0 };
@@ -103,9 +113,10 @@ int main()
 
     int tick{};
 
-    while (window.isOpen())
+    while (!INTERACTIVE_MODE || window->isOpen())
     {
-        window.update();
+        if (window)
+            window->update();
 
         {
             // keyboard input for moving camera pos
@@ -164,9 +175,22 @@ int main()
         /// render scene to image
         renderer.render(scene, camera, image);
 
-        window.clear();
-        window.setBuffer(image);
-        window.display();
+        if (INTERACTIVE_MODE)
+        {
+            window->clear();
+            window->setBuffer(image);
+            window->display();
+        }
+        else
+        {
+            const float renderTime{ timer.getElapsedTime().asSeconds()};
+
+            std::cout << "Render time: " << renderTime << '\n';
+
+            image.saveToFile("render " + std::to_string(renderTime) + "s");
+
+            return 0;
+        }
     }
 
     return 0;

@@ -12,3 +12,7 @@
 *.vcxproj
 *.filters
 *.user
+
+# renders
+*.png
+renders/

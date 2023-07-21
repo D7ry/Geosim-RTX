@@ -32,8 +32,11 @@ public:
 	// bad random number generation function which returns normalized double [0,1]
 	static double rng(unsigned state);
 
-	static glm::vec2 rngVec2(unsigned state);
-	static glm::vec3 rngVec3(unsigned state);
+	static glm::vec2 randomVec2(unsigned state);
+	static glm::vec3 randomVec3(unsigned state);
+
+	// returns a random normalized direction in a hemisphere
+	static glm::vec3 randomDir(unsigned state, const glm::vec3& dir);
 
 	static std::optional<RayIntersection> raySphereIntersection(
 		Ray ray, 

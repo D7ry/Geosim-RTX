@@ -35,7 +35,7 @@ void Renderer::render(const Scene& scene, const Camera& camera, Image& image)
 				glm::vec2 rayOffset;
 
 				if constexpr (USE_RNG_FOR_AA)
-					rayOffset = Math::rngVec2(i);
+					rayOffset = Math::randomVec2(i);
 				else
 					rayOffset = glm::vec2{ ((2.f * i) + 1.f) / (RAYS_PER_PIXEL * 2.f) };
 
@@ -55,13 +55,12 @@ void Renderer::render(const Scene& scene, const Camera& camera, Image& image)
 				glm::vec4 start{ camera.position, 1.f };
 				glm::vec4 dir{ coord.x, coord.y, -1.f, 1.f };
 				
-				// turn ray coords in view space
-				//start = start * camera.viewMat;
+				// transform ray to view space
 				dir = dir * camera.viewMat;
 
 				Ray ray{
-					start, //camera.position,
-					dir //glm::vec3{ coord.x, coord.y, -1.f }
+					start,
+					dir
 				};
 
 				pixelColor += traceRay(ray, scene);
@@ -115,7 +114,7 @@ glm::vec4 Renderer::traceRay(Ray ray, const Scene& scene)
 	glm::vec4 incomingLight{ 0.f };
 	glm::vec4 rayColor{ 1.f };
 
-	static constexpr int MAX_NUM_BOUNCES{ 4 };
+	static constexpr int MAX_NUM_BOUNCES{ 5 };
 
 	for (int i = 0; i <= MAX_NUM_BOUNCES; ++i)
 	{
@@ -131,12 +130,25 @@ glm::vec4 Renderer::traceRay(Ray ray, const Scene& scene)
 			incomingLight += surfaceEmittedLight * rayColor;
 			rayColor *= hit.material.color;
 
-			ray.dir = glm::reflect(ray.dir, hit.intersection.surfaceNormal);
+			static constexpr bool LAMBERT{ false };
+
+			if constexpr (LAMBERT)
+				ray.dir = Math::randomDir(i, hit.intersection.surfaceNormal);
+			else
+				ray.dir = glm::reflect(ray.dir, hit.intersection.surfaceNormal);
+
 			ray.origin = hit.intersection.position;
 		}
 		else
 		{
-			incomingLight += glm::vec4{ 1.f, 0.5f, 0.5f, 1.f } * rayColor;
+			glm::vec3 environmentLightDir{ 0,1,0 };
+
+			glm::vec4 environmentLight{ 
+				std::max(0.f, glm::dot(environmentLightDir, ray.dir)) * rayColor 
+			};
+
+			incomingLight += environmentLight;
+
 			break;
 		}
 	}

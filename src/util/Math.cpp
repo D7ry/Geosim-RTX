@@ -17,14 +17,21 @@ double Math::rng(unsigned state)
 	return state / (double)std::numeric_limits<unsigned>::max();
 }
 
-glm::vec2 Math::rngVec2(unsigned state)
+glm::vec2 Math::randomVec2(unsigned state)
 {
 	return glm::vec2(rng(state), rng(state+1<<1));
 }
 
-glm::vec3 Math::rngVec3(unsigned state)
+glm::vec3 Math::randomVec3(unsigned state)
 {
 	return glm::vec3(rng(state), rng(state + 1 << 1), rng(state + 2 << 2));
+}
+
+glm::vec3 Math::randomDir(unsigned state, const glm::vec3& dir)
+{
+	const glm::vec3 randomVec{ glm::normalize(randomVec3(state)) };
+
+	return glm::normalize(randomVec + dir);
 }
 
 std::optional<RayIntersection> Math::raySphereIntersection(
