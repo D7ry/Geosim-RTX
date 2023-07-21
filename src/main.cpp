@@ -13,6 +13,8 @@
 
 #include <SFML/System/Time.hpp>
 
+#include "Settings.h"
+
 // settings and controls
 static constexpr sf::Keyboard::Key FORWARD{ sf::Keyboard::Key::W };
 static constexpr sf::Keyboard::Key BACKWARD{ sf::Keyboard::Key::S };
@@ -21,6 +23,8 @@ static constexpr sf::Keyboard::Key RIGHT{ sf::Keyboard::Key::D };
 static constexpr sf::Keyboard::Key UP{ sf::Keyboard::Key::Space };
 static constexpr sf::Keyboard::Key DOWN{ sf::Keyboard::Key::LShift };
 static constexpr sf::Keyboard::Key CLOSE{ sf::Keyboard::Key::Escape };
+
+static constexpr sf::Keyboard::Key CAM_DEBUG{ sf::Keyboard::Key::C };
 
 static constexpr sf::Keyboard::Key CAM_SLOW_SPD_KEY{ sf::Keyboard::Key::Num1 };
 static constexpr sf::Keyboard::Key CAM_MED_SPD_KEY{ sf::Keyboard::Key::Num2 };
@@ -32,11 +36,9 @@ static constexpr float CAM_FAST_SPD{ 1.00f };
 
 static constexpr float MOUSE_SENSITIVITY{ 1.5f };
 
-static constexpr bool INTERACTIVE_MODE{ 1 };
-
-static constexpr unsigned WINDOW_WIDTH{ 16 << (INTERACTIVE_MODE ? 3 : 6) };
-static constexpr unsigned WINDOW_HEIGHT{ 9 << (INTERACTIVE_MODE ? 3 : 6) };
-static constexpr unsigned WINDOW_SCALE{  1 << (INTERACTIVE_MODE ? 3 : 1) };
+static constexpr unsigned WINDOW_WIDTH{  INTERACTIVE_MODE ? INTERACTIVE_WIDTH  : OFFLINE_WIDTH  };
+static constexpr unsigned WINDOW_HEIGHT{ INTERACTIVE_MODE ? INTERACTIVE_HEIGHT : OFFLINE_HEIGHT };
+static constexpr unsigned WINDOW_SCALE{ 1 << 3 };
 
 int main()
 {
@@ -68,6 +70,7 @@ int main()
         s.position = { 0.f, 1.f, 0.f };
         s.radius = .5;
         s.material.color = { 1,0,0,1 };
+        s.material.roughness = 1;
         object.add(s);
 
         // middle
@@ -83,21 +86,57 @@ int main()
         object.add(s);
 
         // add one instance of obj to scene
-        object.position = { 0, 0, -5 };
+        object.position = { 0, 1, -5 };
         scene.add(object);
 
         // add another, positioned elsewhere
-        object.position = { 3, 1, -4 };
+        object.position = { 3, 2, -4 };
         scene.add(object);
 
         Geometry floor;
 
         s.radius = 1000;
-        s.material.color = { 0.7f, 0.7f, 1.f, 1.f };
+        s.material.color = { 0.6f, 0.6f, 1.f, 1.f };
+        s.material.roughness = 1;
+        s.material.emissionStrength = .5;
+        s.material.emissionColor = { .5,.5,1,1 };
 
         floor.add(s);
-        floor.position = { 0, -1001, 0 };
+
+        floor.position = { 0, -1000, 0 };
         scene.add(floor);
+    }
+
+    {
+        Geometry object;
+
+        Sphere mirror;
+        mirror.material.color = { 1,1,1,1 };
+        mirror.material.roughness = 0;
+
+        mirror.position = { 0,0,0 };
+
+        Sphere tomato;
+        tomato.material.color = { 1, 0.3, 0.3, 1 };
+        tomato.material.roughness = .3;
+
+        tomato.position = { 2,0,0 };
+
+        Sphere watermelon;
+        watermelon.material.color = { 0.1, 1, 0.1, 1 };
+        watermelon.material.roughness = .8;
+        watermelon.material.emissionColor = { 0.5, 1, 0.2, 1 };
+        watermelon.material.emissionStrength = 0;
+
+        watermelon.position = { -2,0,0 };
+
+        object.add(mirror);
+        object.add(tomato);
+        object.add(watermelon);
+
+        //object.position = { 5, 0, 5 };
+        object.position = { 0, 0, -2 };
+        scene.add(object);
     }
 
     Renderer renderer;
@@ -105,6 +144,10 @@ int main()
 
     // to face -z
     camera.yaw = glm::three_over_two_pi<float>();
+
+    camera.position = { -3.46753, 2.47487, -3.21886 };
+    camera.pitch = -0.533686;
+    camera.yaw = 6.39403;
 
     sf::Vector2i mPosPrev{ sf::Mouse::getPosition() };
     sf::Vector2i mPosCur{ sf::Mouse::getPosition() };
@@ -135,6 +178,19 @@ int main()
             if (sf::Keyboard::isKeyPressed(CLOSE))
                 return 0;
 
+            if (sf::Keyboard::isKeyPressed(CAM_DEBUG))
+            {
+                const auto& c = camera;
+
+                // print pos and euler angles of camera
+                std::cout << "camera.position = {" <<
+                    c.position.x << ", " <<
+                    c.position.y << ", " <<
+                    c.position.z <<
+                    "};\ncamera.pitch = " << c.pitch << 
+                    ";\ncamera.yaw = " << c.yaw << ";\n\n";
+            }
+
             if (sf::Keyboard::isKeyPressed(CAM_SLOW_SPD_KEY))
                 camMoveSpd = CAM_SLOW_SPD;
             if (sf::Keyboard::isKeyPressed(CAM_MED_SPD_KEY))
@@ -156,13 +212,13 @@ int main()
         tick++;
 
         // update scene
-        auto& first = scene.geometry[0];
-        auto& second = scene.geometry[1];
-
-        first.position.z += sinf(tick / 32.f) / 16.f;
-        
-        second.position.x = cosf(tick / 4.f) * 4;
-        second.position.y = sinf(tick / 4.f) * 4;
+        //auto& first = scene.geometry[0];
+        //auto& second = scene.geometry[1];
+        //
+        //first.position.z += sinf(tick / 32.f) / 16.f;
+        //
+        //second.position.x = cosf(tick / 4.f) * 4;
+        //second.position.y = sinf(tick / 4.f) * 4;
 
         //for (auto& o : scene.geometry)
         //{}

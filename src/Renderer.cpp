@@ -9,6 +9,8 @@
 
 #include <iostream>
 
+#include "Settings.h"
+
 void Renderer::render(const Scene& scene, const Camera& camera, Image& image)
 {
 	aspectRatio = (float)image.width / image.height;	// w : h
@@ -19,6 +21,22 @@ void Renderer::render(const Scene& scene, const Camera& camera, Image& image)
 	for (int y = 0; y < image.height; ++y)
 		for (int x = 0; x < image.width; ++x)
 		{
+			if constexpr (!INTERACTIVE_MODE)
+			{
+				const unsigned index{ x + (y * image.width) };
+				const unsigned numPixels{ image.width * image.height };
+
+				const float completionPercent{ 100.f * index / numPixels };
+
+				static float prevPercent{ 0.f };
+
+				if (completionPercent > prevPercent + 10)
+				{
+					prevPercent = (int)completionPercent;
+					std::cout << completionPercent << "%\n";
+				}
+			}
+
 			const glm::vec2 ndc
 			{
 				(x + 0.5f) / image.width,
@@ -26,9 +44,6 @@ void Renderer::render(const Scene& scene, const Camera& camera, Image& image)
 			};
 
 			glm::vec4 pixelColor{ 0.f };
-
-			static constexpr int RAYS_PER_PIXEL{ 1 };
-			static constexpr bool USE_RNG_FOR_AA{ true };
 
 			for (int i = 0; i < RAYS_PER_PIXEL; ++i)
 			{
@@ -114,8 +129,6 @@ glm::vec4 Renderer::traceRay(Ray ray, const Scene& scene)
 	glm::vec4 incomingLight{ 0.f };
 	glm::vec4 rayColor{ 1.f };
 
-	static constexpr int MAX_NUM_BOUNCES{ 5 };
-
 	for (int i = 0; i <= MAX_NUM_BOUNCES; ++i)
 	{
 		auto potentialIntersection = getClosestIntersection(ray, scene);
@@ -128,15 +141,14 @@ glm::vec4 Renderer::traceRay(Ray ray, const Scene& scene)
 
 			glm::vec4 surfaceEmittedLight = hit.material.emissionColor * hit.material.emissionStrength;
 			incomingLight += surfaceEmittedLight * rayColor;
+
+			tickG++;
+			
 			rayColor *= hit.material.color;
+			const glm::vec3 lambertDir = Math::randomDir(tickG, hit.intersection.surfaceNormal);
+			const glm::vec3 reflectedDir = glm::reflect(ray.dir, hit.intersection.surfaceNormal);
 
-			static constexpr bool LAMBERT{ false };
-
-			if constexpr (LAMBERT)
-				ray.dir = Math::randomDir(i, hit.intersection.surfaceNormal);
-			else
-				ray.dir = glm::reflect(ray.dir, hit.intersection.surfaceNormal);
-
+			ray.dir = Math::lerp(hit.material.roughness, lambertDir, reflectedDir);
 			ray.origin = hit.intersection.position;
 		}
 		else

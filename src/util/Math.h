@@ -29,6 +29,10 @@ class Math
 
 public:
 
+	// linearly interpolates between 2 vec3's
+	// at t=0 : a, at t=1 : b
+	static glm::vec3 lerp(float t, const glm::vec3& a, const glm::vec3& b);
+
 	// bad random number generation function which returns normalized double [0,1]
 	static double rng(unsigned state);
 

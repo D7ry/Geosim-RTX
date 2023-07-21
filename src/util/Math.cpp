@@ -1,14 +1,24 @@
 #include "Math.h"
 
 #include <limits>
+#include <algorithm>
 
 #include <glm/glm.hpp>
+
+#include <iostream>
 
 Ray::Ray(const glm::vec3& origin, const glm::vec3& dir)
 	:
 	origin{ origin },
 	dir{ glm::normalize(dir) }
 {}
+
+glm::vec3 Math::lerp(float t, const glm::vec3& a, const glm::vec3& b)
+{
+	t = std::clamp(t, 0.f, 1.f);
+
+	return (t * a) + ((1 - t) * b);
+}
 
 double Math::rng(unsigned state)
 {
@@ -29,9 +39,24 @@ glm::vec3 Math::randomVec3(unsigned state)
 
 glm::vec3 Math::randomDir(unsigned state, const glm::vec3& dir)
 {
-	const glm::vec3 randomVec{ glm::normalize(randomVec3(state)) };
+	glm::vec3 randDirection;
 
-	return glm::normalize(randomVec + dir);
+	bool isInHemisphere{ false };
+
+	while (!isInHemisphere)
+	{
+		float x = rng(state + 0) * 2.0 - 1.0;
+		float y = rng(state + 1) * 2.0 - 1.0;
+		float z = rng(state + 2) * 2.0 - 1.0;
+
+		randDirection = glm::vec3{ x,y,z };
+		randDirection = glm::normalize(randDirection);
+
+		isInHemisphere = glm::dot(randDirection, dir) >= 0;
+		state += 3;
+	}
+	
+	return randDirection;
 }
 
 std::optional<RayIntersection> Math::raySphereIntersection(
