@@ -50,7 +50,7 @@ void Renderer::render(const Scene& scene, const Camera& camera, Image& image)
 				glm::vec2 rayOffset;
 
 				if constexpr (USE_RNG_FOR_AA)
-					rayOffset = Math::randomVec2(i);
+					rayOffset = Math::randomVec2(rngSeed + i);
 				else
 					rayOffset = glm::vec2{ ((2.f * i) + 1.f) / (RAYS_PER_PIXEL * 2.f) };
 
@@ -135,6 +135,10 @@ glm::vec4 Renderer::traceRay(Ray ray, const Scene& scene)
 	
 		const bool rayHit{ potentialIntersection.has_value() };
 
+		float prevIor{ 1.f };
+		bool transmissiveHit{ false };
+		const Material* prevHitMaterial{ nullptr };
+
 		if (rayHit)
 		{
 			PrimitiveIntersection hit{ potentialIntersection.value() };
@@ -142,21 +146,82 @@ glm::vec4 Renderer::traceRay(Ray ray, const Scene& scene)
 			glm::vec4 surfaceEmittedLight = hit.material.emissionColor * hit.material.emissionStrength;
 			incomingLight += surfaceEmittedLight * rayColor;
 
-			tickG++;
-			
 			rayColor *= hit.material.color;
-			const glm::vec3 lambertDir = Math::randomDir(tickG, hit.intersection.surfaceNormal);
-			const glm::vec3 reflectedDir = glm::reflect(ray.dir, hit.intersection.surfaceNormal);
 
-			ray.dir = Math::lerp(hit.material.roughness, lambertDir, reflectedDir);
+			rngSeed++;
+			
+			bool opaqueBehavior{ hit.material.opacity > Math::rng(rngSeed) };
+
+			if (opaqueBehavior)
+			{
+				const glm::vec3 lambertDir = Math::randomDir(rngSeed, hit.intersection.surfaceNormal);
+				const glm::vec3 reflectedDir = glm::reflect(ray.dir, hit.intersection.surfaceNormal);
+				ray.dir = Math::lerp(hit.material.roughness, lambertDir, reflectedDir);
+			}
+			else
+			{
+				//transmit or reflect
+				// calculate r
+				// if rng less than r then reflect, else transmit
+
+				float curIor{ 1.f };
+
+				if (prevHitMaterial)
+				{
+					// leaving primitive
+					if (prevHitMaterial == &hit.material)
+						curIor = 1;
+					else
+						curIor = hit.material.ior;	// enterint primitive
+				}
+				else
+				{
+					prevHitMaterial = &hit.material;
+					curIor = hit.material.ior;	// enterint primitive
+				}
+
+				float reflectance{ Math::SchlickRefractionApprox(
+					ray.dir,
+					hit.intersection.surfaceNormal,
+					prevIor,
+					curIor
+					) };
+
+				bool transmit{ reflectance < Math::rng(rngSeed)};
+
+				if (transmit)
+				{
+					transmissiveHit = true;
+
+					const glm::vec3 transmittedDir = glm::refract(ray.dir, hit.intersection.surfaceNormal, prevIor / curIor);
+					prevIor = curIor;
+
+					ray.dir = transmittedDir;
+				}
+				else
+				{
+					const glm::vec3 reflectedDir = glm::reflect(ray.dir, hit.intersection.surfaceNormal);
+					ray.dir = reflectedDir;
+				}
+			}
 			ray.origin = hit.intersection.position;
 		}
 		else
 		{
-			glm::vec3 environmentLightDir{ 0,1,0 };
+			const float dayTime{ globalTick / 128.f };
+			//glm::vec3 environmentLightDir{ sinf(dayTime), cosf(dayTime), 0 };
+			glm::vec3 environmentLightDir{0, 1, 0 };
+			environmentLightDir = glm::normalize(environmentLightDir);
 
-			glm::vec4 environmentLight{ 
-				std::max(0.f, glm::dot(environmentLightDir, ray.dir)) * rayColor 
+			const glm::vec3 noonColor{ 1 };
+			const glm::vec3 sunsetColor{ 1,.6,.3 };
+
+			const float interpolation = std::max(0.f, glm::dot(environmentLightDir, glm::vec3{ 0,1,0 }));
+
+			const glm::vec4 environmentalLightColor = { Math::lerp(interpolation, noonColor, sunsetColor), 1 };
+
+			glm::vec4 environmentLight{
+				std::max(0.f, glm::dot(environmentLightDir, ray.dir)) * rayColor * environmentalLightColor
 			};
 
 			incomingLight += environmentLight;
@@ -164,7 +229,6 @@ glm::vec4 Renderer::traceRay(Ray ray, const Scene& scene)
 			break;
 		}
 	}
-	
 	return incomingLight;
 }
 

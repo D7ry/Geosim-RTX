@@ -89,16 +89,17 @@ std::optional<RayIntersection> Math::raySphereIntersection(
 	if (t < minT || t > maxT)	// t is out of interval
 		return std::nullopt;
 
+	const bool isInside{ glm::length(ray.origin) < r };
+
 	// reposition ray at original position
 	ray.origin += pos;
 
 	const glm::vec3 intersectionPoint{ getPoint(ray, t) };
-
 	const RayIntersection intersection{
 		ray,
 		t,
 		intersectionPoint,
-		sphereNormal(pos, intersectionPoint)
+		sphereNormal(pos, intersectionPoint, isInside)
 	};
 
 	return intersection;
@@ -120,14 +121,36 @@ glm::vec3 Math::getPoint(const Ray& r, float t)
 	return glm::vec3{ r.origin + (r.dir * t) };
 }
 
-glm::vec3 Math::sphereNormal(const glm::vec3& origin, const glm::vec3& point)
+glm::vec3 Math::sphereNormal(
+	const glm::vec3& origin,
+	const glm::vec3& point,
+	bool isInside
+)
 {
 	// todo unit test
-	return normalize(point - origin);
+	const glm::vec3 normal{ glm::normalize(point - origin) };
+
+	if (isInside)
+		return -normal;
+	else
+		return normal;
 }
 
 glm::vec3 Math::triangleNormal(const glm::vec3 const vertices[3])
 {
 	// todo unit test
 	return glm::cross(vertices[1] - vertices[0], vertices[2] - vertices[0]);
+}
+
+float Math::SchlickRefractionApprox(
+	const glm::vec3& incident,
+	const glm::vec3& normal, 
+	float ior1, 
+	float ior2
+)
+{
+	const float r0 = pow((ior1 - ior2) / (ior1 + ior2), 2);
+	const float cosTheata = glm::dot(-incident, normal);
+
+	return r0 + (1 - r0) * pow(1 - cosTheata, 5);
 }

@@ -38,7 +38,6 @@ static constexpr float MOUSE_SENSITIVITY{ 1.5f };
 
 static constexpr unsigned WINDOW_WIDTH{  INTERACTIVE_MODE ? INTERACTIVE_WIDTH  : OFFLINE_WIDTH  };
 static constexpr unsigned WINDOW_HEIGHT{ INTERACTIVE_MODE ? INTERACTIVE_HEIGHT : OFFLINE_HEIGHT };
-static constexpr unsigned WINDOW_SCALE{ 1 << 3 };
 
 int main()
 {
@@ -66,44 +65,53 @@ int main()
         Geometry object;    // scene will have one object
         Sphere s;           // object is made up of primitives (three spheres)
 
+        s.material.roughness = 1;
+        s.material.ior = 1.76;
+
         // head
         s.position = { 0.f, 1.f, 0.f };
         s.radius = .5;
+        //s.scale = { 3, 1, 1 };
         s.material.color = { 1,0,0,1 };
-        s.material.roughness = 1;
+        s.material.opacity = 0.f;
         object.add(s);
 
         // middle
         s.position = { 0.f, 0.f, 0.f };
         s.radius = .7;
         s.material.color = { 0,1,0,1 };
+        s.material.opacity = 0.5f;
         object.add(s);
 
         // bottom
         s.position = { 0.f, -1.1f, 0.f };
         s.radius = .9;
         s.material.color = { 0,0,1,1 };
+        s.material.opacity = 1.f;
         object.add(s);
 
         // add one instance of obj to scene
-        object.position = { 0, 1, -5 };
+        object.position = { 0, 1, -4 };
         scene.add(object);
 
         // add another, positioned elsewhere
         object.position = { 3, 2, -4 };
-        scene.add(object);
+        //scene.add(object);
 
         Geometry floor;
 
         s.radius = 1000;
         s.material.color = { 0.6f, 0.6f, 1.f, 1.f };
-        s.material.roughness = 1;
-        s.material.emissionStrength = .5;
-        s.material.emissionColor = { .5,.5,1,1 };
+        s.material.roughness = 0.1;
+        s.material.opacity = true;
+
+        //s.material.emissionStrength = .5;
+        //s.material.emissionColor = { .5,.5,1,1 };
 
         floor.add(s);
 
         floor.position = { 0, -1000, 0 };
+
         scene.add(floor);
     }
 
@@ -124,9 +132,9 @@ int main()
 
         Sphere watermelon;
         watermelon.material.color = { 0.1, 1, 0.1, 1 };
-        watermelon.material.roughness = .8;
-        watermelon.material.emissionColor = { 0.5, 1, 0.2, 1 };
-        watermelon.material.emissionStrength = 0;
+        watermelon.material.roughness = 1;
+        watermelon.material.emissionColor = { 0.1, 1, 0.1, 1 }; //{ 0.5, 1, 0.2, 1 };
+        //watermelon.material.emissionStrength = 1;
 
         watermelon.position = { -2,0,0 };
 
@@ -138,21 +146,35 @@ int main()
         object.position = { 0, 0, -2 };
         scene.add(object);
     }
+    {
+        Geometry object;
 
+        Sphere crystal;
+        crystal.material.color = { .9, .95, 1, 1 };
+        crystal.material.opacity = false;
+        crystal.material.ior = 1.7;
+        crystal.radius = 10;
+
+        object.add(crystal);
+
+        object.position = { 20, 10, -3 };
+
+        scene.add(object);
+    }
     Renderer renderer;
     Camera camera;
 
     // to face -z
     camera.yaw = glm::three_over_two_pi<float>();
-
-    camera.position = { -3.46753, 2.47487, -3.21886 };
-    camera.pitch = -0.533686;
-    camera.yaw = 6.39403;
+    
+    camera.position = { 47.4578, 23.7673, -3.08267 };
+    camera.pitch = -0.533203;
+    camera.yaw = 3.21239;
 
     sf::Vector2i mPosPrev{ sf::Mouse::getPosition() };
     sf::Vector2i mPosCur{ sf::Mouse::getPosition() };
 
-    float camMoveSpd{ 1 };
+    float camMoveSpd{ CAM_MED_SPD };
 
     int tick{};
 
@@ -210,6 +232,7 @@ int main()
 
         /// update
         tick++;
+        globalTick++;
 
         // update scene
         //auto& first = scene.geometry[0];

@@ -10,7 +10,9 @@ struct Material
 {
 	glm::vec4 color{ 1.f };
 	float roughness{ 1.f };
-	//float opacity
+	
+	float opacity{ 1.f };
+	float ior{ 1.f };
 
 	glm::vec4 emissionColor{ 1.f };
 	float emissionStrength{ 0.f };
@@ -49,6 +51,7 @@ struct Triangle : Primitive
 struct Sphere : Primitive
 {
 	glm::vec3 position{ 0.f };	// local space
+	//glm::vec3 scale{ 1.f };	// todo
 	float radius{ 1.f };
 
 	PotentialPrimitiveIntersection checkRayIntersection(

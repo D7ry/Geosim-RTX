@@ -60,7 +60,11 @@ public:
 	static glm::vec3 getPoint(const Ray& r, float t);
 
 	// returns surface normal of a sphere at a given point
-	static glm::vec3 sphereNormal(const glm::vec3& origin, const glm::vec3& point);
+	static glm::vec3 sphereNormal(
+		const glm::vec3& origin, 
+		const glm::vec3& point, 
+		bool isInside = false
+	);
 
 	static glm::vec3 triangleNormal(const glm::vec3 const vertices[3]);
 
@@ -68,5 +72,19 @@ public:
 
 	static Vertices transform(const Vertices& v, const glm::mat4& m);
 	static glm::vec3 transform(const glm::vec3& v, const glm::mat4& m);
+
+	static float SchlickRefractionApprox(
+		const glm::vec3& incident,
+		const glm::vec3& normal,
+		float ior1, 
+		float ior2
+	);
+
+	static glm::vec3 refract(
+		const glm::vec3& incident, 
+		const glm::vec3& normal, 
+		float ior1, 
+		float ior2
+	);
 
 };
