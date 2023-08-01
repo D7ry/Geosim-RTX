@@ -20,7 +20,6 @@ So I'd like to make a simple ray tracer with these features:
 
 Renderer
 	render()
-	perPixel()
 	traceRay()
 	checkRayIntersection()
 
@@ -28,33 +27,80 @@ Scene
 	geometry[]
 
 Geometry
-	position
-	scale
-	rotation
+	position	]
+	scale		|	transform matrix to transform primitives to world space
+	rotation	]
 	primatives[]
-
-Material
-	color
-	rougness
-	opacity?
-	
-	emissonColor
-	emissionStrength
+	bounding box
 
 Primitive
 	material
 
 	virtual getNormal()
 
+Box : Primitive
+	bottom corner
+	top corner
+
 Sphere : Primitive
-	radius
-	position
+	scale		]
+	position	]	transform matrix to transform unit sphere to local space
 
 Triangle : Primitive
 	vertices[3]
 
+Material
+	color
+	rougness			// controls solid angle of reflection andis used in brdf
+	
+	emissonColor
+	emissionStrength
+
+	abstract redirect(direction, normal) => Direction
+	abstract reflectionCoeff() => vec3
+
+Metal : Material
+
+	base reflectivity	// for Schlick(rgb)
+	
+	redirect()
+		reflect
+
+	reflectionCoeff()
+		return base reflectivity
+
+Dielectric : Material
+	
+	opacity					// controls probability of ray being reflected vs refracted
+	index of refraction		// uses Schlick(ior1, ior2) (ideally)
+
+	redirect()
+		if rng < opacity // use opacity as probability of light refracting
+			refract
+		else
+			reflect
+
+	reflectionCoeff()
+		return Schlick(ior)	// actually dont know how to implement use of an ior2
+
+Ray Intersection
+	ray*
+	t
+	intersection position
+	surface normal
+
+Math
+	raySphereIntersection(Ray, Sphere) => Ray Intersection
+	rayIntersection(Ray, Sphere) => Ray Intersection
+	
+	Intersection
+	ray intersection*
+	material*
+	bool transmissive		// rays that transmitted don't reflect light for us to see
+
 Camera
-	pos
+	pos				]
+	rotation		]	view matrix
 	up-dir
 	forward-dir
 	fov
@@ -67,15 +113,6 @@ Image
 	height
 	pixels[]
 
-Ray Intersection
-	ray*
-	intersectedPrimitive*
-	t
-	intersectionPos
-
-Math
-	raySphereIntersection(Ray, Sphere) => Ray Intersection
-	rayIntersection(Ray, Sphere) => Ray Intersection
 
 render(Camera, Scene, Image)	// renders scene to Image
 	for pixels in Image
@@ -84,28 +121,57 @@ render(Camera, Scene, Image)	// renders scene to Image
 			send it out	// traceRay()
 			average colors
 
-// (taken from Sebastian Lague)
-traceRay(Ray, Scene) => Color	// cast ray out into scene and trace it
+
+// cast ray out into scene, see where it goes, and determin color off that
+traceRay(Ray, Scene) => Color
 	
-	incoming light = nothing (0, black)	// light going on the the camera / what the camera sees
-	ray color = white (1)
+	hits[]
 
 	for maxNumBounces
 		check for intersection	// checkRayIntersection
 
 		if ray hit
-			light emitted from surface color = surface emission color * surface emission strength	// my surfaces material
-			light strength = dot(surface normal, ray direction)	// by angle of surface to ray
-			incoming light += emitted light * ray color
-			color *= material color * light strength
+			append hit to hits
 			
 			position ray at intersection
-			randomize direction within hemisphere
+			redirect based off material	// reflect or refract
 		else
-			incoming light +=  environmental light * ray color
 			break
 
+	return evaluateLightPath from hits
+
+
+// evaluates a path that light that did (or didnt) make it to the eye
+evaluateLightPath(hits[]) => Color
+
+	incoming light = black (0)
+
+	if reached environment // if ray bounced off a surface and never hit anything after
+		incoming light += environment light
+	
+	// start from last hit (whether there is any light there or not)
+	// forward trace light ray, computing how light reflects and accumulates
+	// off it bounces off each surface until making its way to eye
+	reverse iterating hits
+		if hit wasn't refractive
+			incoming light += emitted light + incoming light * BRDF * cos(theta)
+
 	return incoming light
+
+BRDF(view dir, light dir, normal, material) => Color
+	
+	R0 = get reflectivity from material
+	Ks = SchlickApprox(R0)
+
+	diffuse = Lambert()
+
+	specular = CookTorrance()
+
+	// normal distribution function = GGX/Trowbridge-Reitz
+	// geometry shading function = Schlick-GGX (uses Smith model's G and Schlick-Beckmann G1)  
+
+	return Kd * diffuse + Ks * specular
+
 
 checkRayIntersection(Ray, Scene) => Ray Intersection
 	
