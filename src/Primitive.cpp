@@ -3,27 +3,28 @@
 #include "Primitive.h"
 
 // sphere
-std::optional<PrimitiveIntersection> Sphere::checkRayIntersection(
+PotentialPrimitiveIntersection Sphere::checkRayIntersection(
     const Ray& r,
-    const glm::vec3& offset
+    const glm::vec3& positionWorldSpace
 ) const
 {
     Ray ray = r;
-    ray.origin -= offset;
+    ray.origin -= positionWorldSpace;
+
     auto intersection = Math::raySphereIntersection(ray, this->position, this->radius);
 
     if (!intersection.has_value())
         return std::nullopt;
 
-    intersection.value().position += offset;
+    intersection.value().position += positionWorldSpace;
 
     return PrimitiveIntersection{ material, intersection.value() };
 }
 
 // triangle
-std::optional<PrimitiveIntersection> Triangle::checkRayIntersection(
+PotentialPrimitiveIntersection Triangle::checkRayIntersection(
     const Ray& r,
-    const glm::vec3& offset
+    const glm::vec3& position
 ) const
 {
     auto intersection = Math::rayTriangleIntersection(r, this->vertices);

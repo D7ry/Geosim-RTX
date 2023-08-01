@@ -47,12 +47,7 @@ void Renderer::render(const Scene& scene, const Camera& camera, Image& image)
 
 			for (int i = 0; i < RAYS_PER_PIXEL; ++i)
 			{
-				glm::vec2 rayOffset;
-
-				if constexpr (USE_RNG_FOR_AA)
-					rayOffset = Math::randomVec2(rngSeed + i);
-				else
-					rayOffset = glm::vec2{ ((2.f * i) + 1.f) / (RAYS_PER_PIXEL * 2.f) };
+				glm::vec2 rayOffset = Math::randomVec2(rngSeed + i);
 
 				const glm::vec2 ndcAliased
 				{
@@ -89,41 +84,6 @@ void Renderer::render(const Scene& scene, const Camera& camera, Image& image)
 		}
 }
 
-glm::vec4 Renderer::perPixel(const Scene& scene, const Camera& camera, const glm::vec2& coord)
-{
-	// find closest hit object
-	std::unique_ptr<PrimitiveIntersection> closestHit;
-
-	for (const Geometry& object : scene.geometry )
-		for (const auto& primitivePtr : object.primitives)
-		{
-			const Primitive& primitive = *primitivePtr.get();
-
-			/// todo: i think something is wrong with the positioning, need to check
-			// create ray
-			Ray ray{ 
-				glm::vec3{0},
-				glm::vec3{ coord.x, coord.y, -1.f } 
-			};
-
-			const auto hitCheck = primitive.checkRayIntersection(ray, object.position);
-
-			if (hitCheck.has_value())
-			{
-				const PrimitiveIntersection& hit{ hitCheck.value() };
-
-				// replace closest hit if it is null or closer
-				if (!closestHit || hit.intersection.t < closestHit->intersection.t)
-					closestHit = std::make_unique<PrimitiveIntersection>(hit);
-			}
-		}
-
-	if (closestHit)
-		return glm::vec4{ closestHit->intersection.surfaceNormal, 1.f};
-
-	return glm::vec4{ 0.f, 0.f, 0.f, 1.f };
-}
-
 glm::vec4 Renderer::traceRay(Ray ray, const Scene& scene)
 {
 	glm::vec4 incomingLight{ 0.f };
@@ -144,12 +104,13 @@ glm::vec4 Renderer::traceRay(Ray ray, const Scene& scene)
 			PrimitiveIntersection hit{ potentialIntersection.value() };
 
 			glm::vec4 surfaceEmittedLight = hit.material.emissionColor * hit.material.emissionStrength;
-			incomingLight += surfaceEmittedLight * rayColor;
-
+			float lightStrength = glm::max(0.f, glm::dot(hit.intersection.surfaceNormal, ray.dir));
+			incomingLight += surfaceEmittedLight * rayColor * lightStrength;
 			rayColor *= hit.material.color;
 
 			rngSeed++;
 			
+			// todo isnt working
 			bool opaqueBehavior{ hit.material.opacity > Math::rng(rngSeed) };
 
 			if (opaqueBehavior)
@@ -185,7 +146,7 @@ glm::vec4 Renderer::traceRay(Ray ray, const Scene& scene)
 					hit.intersection.surfaceNormal,
 					prevIor,
 					curIor
-					) };
+				) };
 
 				bool transmit{ reflectance < Math::rng(rngSeed)};
 

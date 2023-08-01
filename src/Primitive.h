@@ -32,9 +32,10 @@ struct Primitive
 {
 	Material material;
 
+	// evaluates ray intersects primitive at a given position in world space
 	virtual PotentialPrimitiveIntersection checkRayIntersection(
 		const Ray& r,
-		const glm::vec3& offset = glm::vec3{0}
+		const glm::vec3& position
 	) const = 0;
 };
 
@@ -44,7 +45,7 @@ struct Triangle : Primitive
 
 	PotentialPrimitiveIntersection checkRayIntersection(
 		const Ray& r,
-		const glm::vec3& offset = glm::vec3{ 0 }
+		const glm::vec3& position
 	) const;
 };
 
@@ -56,6 +57,6 @@ struct Sphere : Primitive
 
 	PotentialPrimitiveIntersection checkRayIntersection(
 		const Ray& r,
-		const glm::vec3& offset = glm::vec3{ 0 }
+		const glm::vec3& position
 	) const;
 };

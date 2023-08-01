@@ -80,11 +80,4 @@ public:
 		float ior2
 	);
 
-	static glm::vec3 refract(
-		const glm::vec3& incident, 
-		const glm::vec3& normal, 
-		float ior1, 
-		float ior2
-	);
-
 };

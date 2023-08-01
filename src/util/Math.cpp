@@ -24,44 +24,40 @@ double Math::rng(unsigned state)
 {
 	state *= (state + 340147) * (state + 1273128) * (state + 782243);
 
-	return state / (double)std::numeric_limits<unsigned>::max();
+	return (double)state / std::numeric_limits<unsigned>::max();
 }
 
 glm::vec2 Math::randomVec2(unsigned state)
 {
-	return glm::vec2(rng(state), rng(state+1<<1));
+	return glm::vec2(rng(state<<0), rng(state+1<<1));
 }
 
 glm::vec3 Math::randomVec3(unsigned state)
 {
-	return glm::vec3(rng(state), rng(state + 1 << 1), rng(state + 2 << 2));
+	return glm::vec3(rng(state<<0), rng(state+1<<1), rng(state+2<<2));
 }
 
 glm::vec3 Math::randomDir(unsigned state, const glm::vec3& dir)
 {
-	glm::vec3 randDirection;
+	// take random direction in on a sphere (here my distribution isn't uniform :P)
+	// todo: make uniform distribution
+	const glm::vec3 randDirection{ 
+		glm::normalize((randomVec3(state) * 2.f) - 1.f )
+	};
 
-	bool isInHemisphere{ false };
+	const bool inWrongHemisphere{ glm::dot(randDirection, dir) < 0 };
 
-	while (!isInHemisphere)
-	{
-		float x = rng(state + 0) * 2.0 - 1.0;
-		float y = rng(state + 1) * 2.0 - 1.0;
-		float z = rng(state + 2) * 2.0 - 1.0;
+	// if the random direction is in the wrong hemisphere
+	if (inWrongHemisphere)
+		return -randDirection;	// flip it to the other hemisphere
 
-		randDirection = glm::vec3{ x,y,z };
-		randDirection = glm::normalize(randDirection);
-
-		isInHemisphere = glm::dot(randDirection, dir) >= 0;
-		state += 3;
-	}
-	
+	// otherwise its fine
 	return randDirection;
 }
 
 std::optional<RayIntersection> Math::raySphereIntersection(
 	Ray ray, 
-	const glm::vec3& pos, 
+	const glm::vec3& pos,
 	float r,
 	float minT,
 	float maxT
@@ -73,17 +69,17 @@ std::optional<RayIntersection> Math::raySphereIntersection(
 	ray.origin -= pos;
 
 	const float a = glm::dot(ray.dir, ray.dir);
-	const float b = 2 * glm::dot(ray.dir, ray.origin);
+	const float b = glm::dot(ray.dir, ray.origin);
 	const float c = glm::dot(ray.origin, ray.origin) - pow(r, 2);
 
-	const float descriminant = (b * b) - (4 * a * c);
+	const float descriminant = (b * b) - (a * c);
 
 	if (descriminant < 0)
 		return std::nullopt;
 	
 	// take smallest positive root for t
-	const float t1 = (-b - sqrtf(descriminant)) / 2.f;
-	const float t2 = (-b + sqrtf(descriminant)) / 2.f;
+	const float t1 = (-b - sqrtf(descriminant));
+	const float t2 = (-b + sqrtf(descriminant));
 	const float t = (t1 > 0) ? t1 : t2;
 	
 	if (t < minT || t > maxT)	// t is out of interval
@@ -95,14 +91,13 @@ std::optional<RayIntersection> Math::raySphereIntersection(
 	ray.origin += pos;
 
 	const glm::vec3 intersectionPoint{ getPoint(ray, t) };
-	const RayIntersection intersection{
+
+	return RayIntersection{
 		ray,
 		t,
 		intersectionPoint,
 		sphereNormal(pos, intersectionPoint, isInside)
 	};
-
-	return intersection;
 }
 
 std::optional<RayIntersection> Math::rayTriangleIntersection(
@@ -149,7 +144,7 @@ float Math::SchlickRefractionApprox(
 	float ior2
 )
 {
-	const float r0 = pow((ior1 - ior2) / (ior1 + ior2), 2);
+	const float r0 = pow((ior1 - 1), 2) / pow((ior1 + 1), 2);
 	const float cosTheata = glm::dot(-incident, normal);
 
 	return r0 + (1 - r0) * pow(1 - cosTheata, 5);

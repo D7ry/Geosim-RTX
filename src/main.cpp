@@ -96,7 +96,7 @@ int main()
 
         // add another, positioned elsewhere
         object.position = { 3, 2, -4 };
-        //scene.add(object);
+        scene.add(object);
 
         Geometry floor;
 
@@ -121,6 +121,8 @@ int main()
         Sphere mirror;
         mirror.material.color = { 1,1,1,1 };
         mirror.material.roughness = 0;
+        mirror.material.opacity = 0;
+        mirror.material.ior = 1.5;
 
         mirror.position = { 0,0,0 };
 
@@ -134,7 +136,7 @@ int main()
         watermelon.material.color = { 0.1, 1, 0.1, 1 };
         watermelon.material.roughness = 1;
         watermelon.material.emissionColor = { 0.1, 1, 0.1, 1 }; //{ 0.5, 1, 0.2, 1 };
-        //watermelon.material.emissionStrength = 1;
+        watermelon.material.emissionStrength = 1;
 
         watermelon.position = { -2,0,0 };
 
@@ -166,10 +168,11 @@ int main()
 
     // to face -z
     camera.yaw = glm::three_over_two_pi<float>();
-    
-    camera.position = { 47.4578, 23.7673, -3.08267 };
-    camera.pitch = -0.533203;
-    camera.yaw = 3.21239;
+
+    // looking through crystal ball
+    //camera.position = { 47.4578, 23.7673, -3.08267 };
+    //camera.pitch = -0.533203;
+    //camera.yaw = 3.21239;
 
     sf::Vector2i mPosPrev{ sf::Mouse::getPosition() };
     sf::Vector2i mPosCur{ sf::Mouse::getPosition() };
