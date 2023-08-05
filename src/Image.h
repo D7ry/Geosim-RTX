@@ -11,7 +11,7 @@ struct Image
 	const unsigned width;
 	const unsigned height;
 
-	std::vector<glm::vec4> pixels;
+	std::vector<glm::vec3> pixels;
 
 	Image(unsigned width, unsigned height)
 		:
@@ -20,7 +20,7 @@ struct Image
 		pixels{ width * height }
 	{}
 
-	void setPixel(const glm::vec2& ndc, const glm::vec4& pixelData)
+	void setPixel(const glm::vec2& ndc, const glm::vec3& pixelData)
 	{
 		glm::uvec2 pixelCoord{
 			ndc.x * width,
@@ -36,7 +36,7 @@ struct Image
 	{
 		std::vector<sf::Uint8> uint8Pixels;
 
-		for (const glm::vec4& pixel : pixels)
+		for (const glm::vec3& pixel : pixels)
 		{
 			uint8Pixels.push_back(pixel.r * 255);
 			uint8Pixels.push_back(pixel.g * 255);
@@ -46,8 +46,8 @@ struct Image
 
 			if constexpr (ALWAYS_OPAQUE)
 				uint8Pixels.push_back(255);
-			else
-				uint8Pixels.push_back(pixel.a * 255);
+			//else
+			//	uint8Pixels.push_back(pixel.a * 255);
 		}
 
 		sf::Image i;

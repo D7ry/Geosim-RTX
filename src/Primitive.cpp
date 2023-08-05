@@ -2,8 +2,54 @@
 
 #include "Primitive.h"
 
+#include "Settings.h"
+
+#include <cmath>
+
+Intersection::Intersection(const Material& m, const RayIntersection& i)
+    :
+    material{ m },
+    incidentDir{ i.ray.dir },
+    outgoingDir{ },
+    position{ i.position },
+    normal{ i.normal },
+    math{ i }
+{
+    outgoingDir = redirect(i.ray.dir);
+}
+
+glm::vec3 Intersection::redirect(const glm::vec3& i) const
+{
+    glm::vec3 outgoing{ 0.f };
+
+    //if (reflected)
+    {
+        rngSeed++;
+        const glm::vec3 lambert{ Math::randomHemisphereDir(rngSeed, normal) };
+        const glm::vec3 mirror{ glm::reflect(incidentDir, normal) };
+
+        outgoing = Math::lerp(material.roughness, mirror, lambert);
+    }
+    //else // light diffused or refracted
+    {
+        // todo
+
+    }
+    return outgoing;
+}
+
+bool Intersection::evaluateReflectivity()
+{
+    return true;
+}
+
+bool Intersection::shouldRefract()
+{
+    return false;
+}
+
 // sphere
-PotentialPrimitiveIntersection Sphere::checkRayIntersection(
+PotentialIntersection Sphere::checkRayIntersection(
     const Ray& r,
     const glm::vec3& positionWorldSpace
 ) const
@@ -18,11 +64,11 @@ PotentialPrimitiveIntersection Sphere::checkRayIntersection(
 
     intersection.value().position += positionWorldSpace;
 
-    return PrimitiveIntersection{ material, intersection.value() };
+    return Intersection{ *material.get(), intersection.value()};
 }
 
 // triangle
-PotentialPrimitiveIntersection Triangle::checkRayIntersection(
+PotentialIntersection Triangle::checkRayIntersection(
     const Ray& r,
     const glm::vec3& position
 ) const
@@ -32,5 +78,17 @@ PotentialPrimitiveIntersection Triangle::checkRayIntersection(
     if (!intersection.has_value())
         return std::nullopt;
 
-    return PrimitiveIntersection{ material, intersection.value() };
+    return Intersection{ *material.get(), intersection.value() };
+}
+
+glm::vec3 Metal::reflectionCoeff() const
+{
+    return baseReflectivity;
+}
+
+glm::vec3 Dielectric::reflectionCoeff() const
+{
+    return glm::vec3{
+        Math::SchlickR0(ior)
+    };
 }

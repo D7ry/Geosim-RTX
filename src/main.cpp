@@ -15,6 +15,8 @@
 
 #include "Settings.h"
 
+#include <memory>
+
 // settings and controls
 static constexpr sf::Keyboard::Key FORWARD{ sf::Keyboard::Key::W };
 static constexpr sf::Keyboard::Key BACKWARD{ sf::Keyboard::Key::S };
@@ -59,125 +61,136 @@ int main()
     Image image{ WINDOW_WIDTH, WINDOW_HEIGHT };
 
     Scene scene;
+ 
+    std::shared_ptr<Material> greenMat = std::make_shared<Dielectric>();
+    greenMat->albedo = { 0,1,0 };
+    greenMat->roughness = 1;
+    greenMat->emissionStrength = .5;
+    greenMat->emissionColor = { 0,1,1 };
+
+    std::shared_ptr<Material> redMat = std::make_shared<Dielectric>();
+    redMat->albedo = { 1,0,0 };
+    redMat->roughness = 0.5;
+
+    std::shared_ptr<Dielectric> mirrorMat = std::make_shared<Dielectric>();
+    mirrorMat->albedo = { 1,1,1 };
+    mirrorMat->roughness = 0;
+    mirrorMat->ior = 1.5;
+
+    std::shared_ptr<Material> floorMat = std::make_shared<Dielectric>();
+    floorMat->albedo = { 0.6f, 0.6f, 1.f };
+    floorMat->roughness = .1;
+
+    std::shared_ptr<Material> whiteMat = std::make_shared<Dielectric>();
+    whiteMat->albedo = { 1,1,1 };
+    whiteMat->roughness = 0.9;
+
+    std::shared_ptr<Material> lightMat = std::make_shared<Dielectric>();
+    lightMat->albedo = { 1,1,1 };
+    lightMat->roughness = 1;
+    lightMat->emissionStrength = 1;
+    lightMat->emissionColor = { 1,.9,.8 };
 
     // create scene
     {
-        Geometry object;    // scene will have one object
-        Sphere s;           // object is made up of primitives (three spheres)
+        Geometry snowmanObject;    // scene will have one object
 
-        s.material.roughness = 1;
-        s.material.ior = 1.76;
+        // create geometry of primitives
+        Sphere head;
+        head.position = { 0.f, 1.f, 0.f };
+        head.radius = .5;
 
-        // head
-        s.position = { 0.f, 1.f, 0.f };
-        s.radius = .5;
-        //s.scale = { 3, 1, 1 };
-        s.material.color = { 1,0,0,1 };
-        s.material.opacity = 0.f;
-        object.add(s);
+        Sphere middle;
+        middle.position = { 0.f, 0.f, 0.f };
+        middle.radius = .7;
 
-        // middle
-        s.position = { 0.f, 0.f, 0.f };
-        s.radius = .7;
-        s.material.color = { 0,1,0,1 };
-        s.material.opacity = 0.5f;
-        object.add(s);
+        Sphere bottom;
+        bottom.position = { 0.f, -1.1f, 0.f };
+        bottom.radius = .9;
 
-        // bottom
-        s.position = { 0.f, -1.1f, 0.f };
-        s.radius = .9;
-        s.material.color = { 0,0,1,1 };
-        s.material.opacity = 1.f;
-        object.add(s);
+        // assign materials
+        head.material = whiteMat;
+        middle.material = whiteMat;
+        bottom.material = whiteMat;
+
+        // add primitives to object
+        snowmanObject.add(head);
+        snowmanObject.add(middle);
+        snowmanObject.add(bottom);
 
         // add one instance of obj to scene
-        object.position = { 0, 1, -4 };
-        scene.add(object);
+        snowmanObject.position = { 0, 1, -4 };
+        scene.add(snowmanObject);
 
         // add another, positioned elsewhere
-        object.position = { 3, 2, -4 };
-        scene.add(object);
+        snowmanObject.position = { 3, 2, -4 };
+        //scene.add(snowmanObject);
+    }
 
-        Geometry floor;
+    {
+        Geometry floorObject;
+        Sphere floor;
 
-        s.radius = 1000;
-        s.material.color = { 0.6f, 0.6f, 1.f, 1.f };
-        s.material.roughness = 0.1;
-        s.material.opacity = true;
+        floor.radius = 1000;
+        floor.material = floorMat;
 
-        //s.material.emissionStrength = .5;
-        //s.material.emissionColor = { .5,.5,1,1 };
+        floorObject.add(floor);
+        floorObject.position = { 0, -1001, 0 };
 
-        floor.add(s);
+        scene.add(floorObject);
+    }
 
-        floor.position = { 0, -1000, 0 };
+    {
+        Geometry lightObject;
+        Sphere light;
 
-        scene.add(floor);
+        light.radius = 1000;
+        light.material = lightMat;
+
+        lightObject.add(light);
+        lightObject.position = { 0, 1234, 0 };
+
+        //scene.add(lightObject);
     }
 
     {
         Geometry object;
 
         Sphere mirror;
-        mirror.material.color = { 1,1,1,1 };
-        mirror.material.roughness = 0;
-        mirror.material.opacity = 0;
-        mirror.material.ior = 1.5;
-
         mirror.position = { 0,0,0 };
 
         Sphere tomato;
-        tomato.material.color = { 1, 0.3, 0.3, 1 };
-        tomato.material.roughness = .3;
-
         tomato.position = { 2,0,0 };
 
         Sphere watermelon;
-        watermelon.material.color = { 0.1, 1, 0.1, 1 };
-        watermelon.material.roughness = 1;
-        watermelon.material.emissionColor = { 0.1, 1, 0.1, 1 }; //{ 0.5, 1, 0.2, 1 };
-        watermelon.material.emissionStrength = 1;
-
         watermelon.position = { -2,0,0 };
+
+        mirror.material = mirrorMat;
+        tomato.material = redMat;
+        watermelon.material = greenMat;
 
         object.add(mirror);
         object.add(tomato);
         object.add(watermelon);
 
-        //object.position = { 5, 0, 5 };
         object.position = { 0, 0, -2 };
         scene.add(object);
     }
-    {
-        Geometry object;
 
-        Sphere crystal;
-        crystal.material.color = { .9, .95, 1, 1 };
-        crystal.material.opacity = false;
-        crystal.material.ior = 1.7;
-        crystal.radius = 10;
-
-        object.add(crystal);
-
-        object.position = { 20, 10, -3 };
-
-        scene.add(object);
-    }
     Renderer renderer;
     Camera camera;
 
     // to face -z
     camera.yaw = glm::three_over_two_pi<float>();
 
-    // looking through crystal ball
-    //camera.position = { 47.4578, 23.7673, -3.08267 };
-    //camera.pitch = -0.533203;
-    //camera.yaw = 3.21239;
-
     sf::Vector2i mPosPrev{ sf::Mouse::getPosition() };
     sf::Vector2i mPosCur{ sf::Mouse::getPosition() };
 
     float camMoveSpd{ CAM_MED_SPD };
+
+    camera.position = { -1.89711, 2.31398, 0.773041 };
+    camera.pitch = -0.573735;
+    camera.yaw = -13.6802;
 
     int tick{};
 
@@ -238,16 +251,7 @@ int main()
         globalTick++;
 
         // update scene
-        //auto& first = scene.geometry[0];
-        //auto& second = scene.geometry[1];
-        //
-        //first.position.z += sinf(tick / 32.f) / 16.f;
-        //
-        //second.position.x = cosf(tick / 4.f) * 4;
-        //second.position.y = sinf(tick / 4.f) * 4;
-
-        //for (auto& o : scene.geometry)
-        //{}
+        // ...
 
         // update camera
         camera.pitch = std::clamp(camera.pitch, -glm::half_pi<float>(), glm::half_pi<float>());
@@ -257,7 +261,7 @@ int main()
         /// render scene to image
         renderer.render(scene, camera, image);
 
-        if (INTERACTIVE_MODE)
+        if constexpr (INTERACTIVE_MODE)
         {
             window->clear();
             window->setBuffer(image);

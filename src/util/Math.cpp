@@ -4,8 +4,9 @@
 #include <algorithm>
 
 #include <glm/glm.hpp>
+#include <glm/gtc/constants.hpp>
 
-#include <iostream>
+#include "../Primitive.h"
 
 Ray::Ray(const glm::vec3& origin, const glm::vec3& dir)
 	:
@@ -17,14 +18,14 @@ glm::vec3 Math::lerp(float t, const glm::vec3& a, const glm::vec3& b)
 {
 	t = std::clamp(t, 0.f, 1.f);
 
-	return (t * a) + ((1 - t) * b);
+	return (t * b) + ((1 - t) * a);
 }
 
-double Math::rng(unsigned state)
+float Math::rng(unsigned state)
 {
 	state *= (state + 340147) * (state + 1273128) * (state + 782243);
 
-	return (double)state / std::numeric_limits<unsigned>::max();
+	return (float)state / std::numeric_limits<unsigned>::max();
 }
 
 glm::vec2 Math::randomVec2(unsigned state)
@@ -37,7 +38,7 @@ glm::vec3 Math::randomVec3(unsigned state)
 	return glm::vec3(rng(state<<0), rng(state+1<<1), rng(state+2<<2));
 }
 
-glm::vec3 Math::randomDir(unsigned state, const glm::vec3& dir)
+glm::vec3 Math::randomHemisphereDir(unsigned state, const glm::vec3& dir)
 {
 	// take random direction in on a sphere (here my distribution isn't uniform :P)
 	// todo: make uniform distribution
@@ -68,11 +69,10 @@ std::optional<RayIntersection> Math::raySphereIntersection(
 	// orient sphere at origin
 	ray.origin -= pos;
 
-	const float a = glm::dot(ray.dir, ray.dir);
 	const float b = glm::dot(ray.dir, ray.origin);
 	const float c = glm::dot(ray.origin, ray.origin) - pow(r, 2);
 
-	const float descriminant = (b * b) - (a * c);
+	const float descriminant = (b * b) - (c);
 
 	if (descriminant < 0)
 		return std::nullopt;
@@ -82,10 +82,11 @@ std::optional<RayIntersection> Math::raySphereIntersection(
 	const float t2 = (-b + sqrtf(descriminant));
 	const float t = (t1 > 0) ? t1 : t2;
 	
-	if (t < minT || t > maxT)	// t is out of interval
+	if (t < minT || t > maxT || t != t)	// t is out of interval or nan
 		return std::nullopt;
 
-	const bool isInside{ glm::length(ray.origin) < r };
+	// inch ray forward a tiny bit to see whether it is really inside or outside
+	const bool isInside{ glm::length(getPoint(ray, MIN_T)) < r };
 
 	// reposition ray at original position
 	ray.origin += pos;
@@ -137,15 +138,101 @@ glm::vec3 Math::triangleNormal(const glm::vec3 const vertices[3])
 	return glm::cross(vertices[1] - vertices[0], vertices[2] - vertices[0]);
 }
 
-float Math::SchlickRefractionApprox(
+glm::vec3 Math::SchlickR0(float ior)
+{
+	return glm::vec3{ SchlickR0(ior, 1.f) };
+}
+
+glm::vec3 Math::SchlickR0(float ior1, float ior2)
+{
+	return glm::vec3{
+		powf((ior1 - ior2) / (ior1 + ior2), 2)
+	};
+}
+glm::vec3 Math::Schlick(
 	const glm::vec3& incident,
-	const glm::vec3& normal, 
-	float ior1, 
-	float ior2
+	const glm::vec3& normal,
+	const glm::vec3& r0
 )
 {
-	const float r0 = pow((ior1 - 1), 2) / pow((ior1 + 1), 2);
-	const float cosTheata = glm::dot(-incident, normal);
+	const float cosTheata = glm::max(0.f, glm::dot(incident, normal));
 
-	return r0 + (1 - r0) * pow(1 - cosTheata, 5);
+	const glm::vec3 one{ 1.f };
+
+	return r0 + (one - r0) * powf(1 - cosTheata, 5);
+}
+
+glm::vec3 Math::BRDF(const Intersection& hit)
+{
+	const glm::vec3& V = -hit.incidentDir;	// omega_o (outgoing light)
+	const glm::vec3& L = hit.outgoingDir;	// omega_i (negative incoming light)
+	const glm::vec3& N = hit.normal;
+
+	const glm::vec3& albedo = hit.material.albedo;
+	const float& roughness = hit.material.roughness;
+
+	const glm::vec3 r0 = hit.material.reflectionCoeff();
+	const glm::vec3 Ks = Schlick(L, N, r0);
+	const glm::vec3 Kd = glm::vec3(1.f) - Ks;
+
+	const glm::vec3 diffuse = Lambert(albedo);
+	const glm::vec3 specular = CookTorrance(V, L, N, roughness, TrowbridgeReitzGGX, SchlickGGX);
+
+	return (Ks * specular) + (Kd * diffuse);
+}
+
+glm::vec3 Math::Lambert(const glm::vec3& albedo)
+{
+	return albedo / glm::pi<float>();
+}
+
+glm::vec3 Math::CookTorrance(
+	const glm::vec3& w_o, 
+	const glm::vec3& w_i, 
+	const glm::vec3& n,
+	float roughness,
+	NormalDistributionFunction D, 
+	GeometryShadingFunction G
+)
+{
+	const float alpha = roughness * roughness;
+	const glm::vec3 halfAngle = glm::normalize((w_i + w_o) / glm::length(w_i + w_o));
+
+	const float numerator = D(n, halfAngle, alpha) * G(w_o, w_i, n, alpha);
+	const float denominator = 4.f * glm::dot(w_i, n) * glm::dot(w_o, n);
+
+	return glm::vec3(numerator / denominator);
+}
+
+float Math::TrowbridgeReitzGGX(
+	const glm::vec3& n, 
+	const glm::vec3& H, 
+	float alpha
+)
+{
+	const float alpha2 = alpha * alpha;
+
+	const float theta2 = glm::pow(glm::dot(n, H), 2);
+
+	const float denominator = glm::pi<float>() * glm::pow(theta2 * (alpha2 - 1) + 1, 2);
+
+	return alpha2 / glm::max(0.001f,denominator);
+}
+
+float Math::SchlickGGX(
+	const glm::vec3& w_o, 
+	const glm::vec3& w_i, 
+	const glm::vec3& n, 
+	float alpha
+)
+{
+	// Smith
+	auto G = [](const glm::vec3& x, const glm::vec3& n, float k)
+	{
+		return glm::dot(n, x) / glm::max(0.0001f, (glm::dot(n, x) * (1.f - k)) + k);
+	};
+
+	const float k = alpha / 2.f;
+
+	return G(w_i, n, k) * G(w_o, n, k);
 }

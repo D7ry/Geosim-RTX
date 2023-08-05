@@ -6,6 +6,10 @@
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
 
+#include <functional>
+
+struct Intersection;
+
 struct Ray
 {
 	glm::vec3 origin;
@@ -19,7 +23,7 @@ struct RayIntersection
 	const Ray ray;
 	const float t;
 	glm::vec3 position;
-	const glm::vec3 surfaceNormal;
+	const glm::vec3 normal;
 };
 
 class Math
@@ -34,13 +38,16 @@ public:
 	static glm::vec3 lerp(float t, const glm::vec3& a, const glm::vec3& b);
 
 	// bad random number generation function which returns normalized double [0,1]
-	static double rng(unsigned state);
+	static float rng(unsigned state);
 
+	// returns a vector where each component is between 0 and 1
 	static glm::vec2 randomVec2(unsigned state);
+
+	// returns a vector where each component is between 0 and 1
 	static glm::vec3 randomVec3(unsigned state);
 
-	// returns a random normalized direction in a hemisphere
-	static glm::vec3 randomDir(unsigned state, const glm::vec3& dir);
+	// returns a random normalized direction in the hemisphere of dir
+	static glm::vec3 randomHemisphereDir(unsigned state, const glm::vec3& dir);
 
 	static std::optional<RayIntersection> raySphereIntersection(
 		Ray ray, 
@@ -73,11 +80,57 @@ public:
 	static Vertices transform(const Vertices& v, const glm::mat4& m);
 	static glm::vec3 transform(const glm::vec3& v, const glm::mat4& m);
 
-	static float SchlickRefractionApprox(
+	static glm::vec3 Schlick(
 		const glm::vec3& incident,
 		const glm::vec3& normal,
-		float ior1, 
-		float ior2
+		const glm::vec3& r0
+	);
+
+	// computes Schlick approximation's R0 term for dielectric materials (the dumb way)
+	static glm::vec3 SchlickR0(float ior);
+
+	// computes Schlick approximation's R0 term for dielectric materials
+	static glm::vec3 SchlickR0(float ior1, float ior2);
+
+	static glm::vec3 BRDF(const Intersection& hit);
+
+	static glm::vec3 Lambert(const glm::vec3& albedo);
+
+	typedef float (*NormalDistributionFunction)(
+		const glm::vec3& normal, 
+		const glm::vec3& halfAngle, 
+		float roughness
+	);
+
+	typedef float (*GeometryShadingFunction)(
+		const glm::vec3& outgoingLight,
+		const glm::vec3& negIncomingLight,
+		const glm::vec3& normal,
+		float roughness
+	);
+
+	static glm::vec3 CookTorrance(
+		const glm::vec3& outgoingLight, 
+		const glm::vec3& negIncomingLight, 
+		const glm::vec3& normal,
+		float roughness,
+		NormalDistributionFunction D,
+		GeometryShadingFunction G
+	);
+
+	// Normal Distribution Function
+	static float TrowbridgeReitzGGX(
+		const glm::vec3& normal,
+		const glm::vec3& halfAngle,
+		float roughness
+	);
+
+	// Geometry Shading Function
+	static float SchlickGGX(
+		const glm::vec3& outgoingLight,
+		const glm::vec3& negIncomingLight,
+		const glm::vec3& normal,
+		float roughness
 	);
 
 };

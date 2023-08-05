@@ -5,6 +5,8 @@
 
 #include "Primitive.h"
 
+#include <vector>
+
 struct Camera;
 struct Image;
 struct Ray;
@@ -18,11 +20,20 @@ public:
 
 private:
 	// calculation for color of a pixel at a given NDC
-	glm::vec4 perPixel(const Scene& scene, const Camera& camera, const glm::vec2& coord);
+	glm::vec3 perPixel(const Scene& scene, const Camera& camera, const glm::vec2& coord);
 
-	glm::vec4 traceRay(Ray ray, const Scene& scene);
+	// cast ray out into scene, see where it goes, and determin color off that
+	glm::vec3 traceRay(Ray ray, const Scene& scene);
 
-	PotentialPrimitiveIntersection getClosestIntersection(const Ray& ray, const Scene& scene);
+	// evaluates a path that light that did (or didnt) make it to the eye
+	glm::vec3 evaluateLightPath(const Ray& primary, const std::vector<Intersection>& hits);
+
+	PotentialIntersection getClosestIntersection(const Ray& ray, const Scene& scene);
+
+	glm::vec3 environmentalLight(const glm::vec3& dir);
+
+	void debugRayCast(const Ray& primary, std::vector<Intersection>& hits);
+	void debugLightPath(const Ray& primary, std::vector<Intersection>& hits);
 
 private:
 	float aspectRatio{};
