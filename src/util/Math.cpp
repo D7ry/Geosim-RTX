@@ -8,6 +8,8 @@
 
 #include "../Primitive.h"
 
+#include "../Settings.h"
+
 Ray::Ray(const glm::vec3& origin, const glm::vec3& dir)
 	:
 	origin{ origin },
@@ -19,6 +21,11 @@ glm::vec3 Math::lerp(float t, const glm::vec3& a, const glm::vec3& b)
 	t = std::clamp(t, 0.f, 1.f);
 
 	return (t * b) + ((1 - t) * a);
+}
+
+bool Math::probability(float percentage)
+{
+	return rng(rngSeed) > percentage;
 }
 
 float Math::rng(unsigned state)
@@ -108,8 +115,87 @@ std::optional<RayIntersection> Math::rayTriangleIntersection(
 	float maxT
 )
 {
-	// todo
-	return std::optional<RayIntersection>();
+	const glm::vec3& a = vertices[0];
+	const glm::vec3& b = vertices[1];
+	const glm::vec3& c = vertices[2];
+
+	const glm::vec3 ab = b - a;
+	const glm::vec3 ac = c - a;
+
+	const glm::vec3 triCross = glm::cross(ac, ab);
+	const glm::vec3 normal = glm::normalize(triCross);
+	const glm::vec3& pos = a;
+
+	auto potentialIntersection = rayPlaneIntersection(ray, pos, normal);
+
+	if (!potentialIntersection.has_value())
+		return std::nullopt;
+
+	const RayIntersection& intersection = potentialIntersection.value();
+	const glm::vec3& point = intersection.position;
+
+	const float area = glm::length(triCross) / 2.f;
+	
+	const glm::vec3 ap = point - a;
+	const glm::vec3 bp = point - b;
+	const glm::vec3 cp = point - c;
+
+	const float uArea = glm::length(glm::cross(bp,cp)) / 2.f;
+	const float vArea = glm::length(glm::cross(ap,cp)) / 2.f;
+	const float wArea = glm::length(glm::cross(ap,bp)) / 2.f;
+
+	// barycentric coordinates are u, v, w for a, b, c, respectivley
+	const float u = uArea / area;
+	const float v = vArea / area;
+	const float w = wArea / area;
+
+	const float sum = u + v + w;
+
+	const bool isInBounds{
+		(0 <= u && u <= 1) &&
+		(0 <= v && v <= 1) &&
+		(0 <= w && w <= 1) &&
+		sum < 1.00001 && sum > 0.99999
+	};
+
+	if (!isInBounds)
+		return std::nullopt;
+
+	return intersection;
+}
+
+std::optional<RayIntersection> Math::rayPlaneIntersection(
+	const Ray& ray, 
+	const glm::vec3& p, 
+	const glm::vec3& n, 
+	float minT, 
+	float maxT
+)
+{
+	// make sure input is valid
+	if constexpr (DEBUG)
+		assert(glm::length(n) == 1.f);
+
+
+	const float d = glm::dot(n, p);
+	const float t = (d - glm::dot(n, ray.origin)) / glm::dot(n, ray.dir);
+
+	if (t < minT || t > maxT || t != t)	// t is out of interval or nan
+		return std::nullopt;
+
+	glm::vec3 normal = -n;
+
+	const bool intersectionBehind{ glm::dot(ray.dir, n) < 0 };
+	
+	if (intersectionBehind)
+		normal = -normal;
+	
+	return RayIntersection(
+		ray, 
+		t, 
+		getPoint(ray, t), 
+		normal
+	);
 }
 
 glm::vec3 Math::getPoint(const Ray& r, float t)

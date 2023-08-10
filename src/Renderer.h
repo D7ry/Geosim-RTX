@@ -18,10 +18,13 @@ public:
 	// outputs render to Image perameter
 	void render(const Scene& scene, const Camera& camera, Image& image);
 
-private:
-	// calculation for color of a pixel at a given NDC
-	glm::vec3 perPixel(const Scene& scene, const Camera& camera, const glm::vec2& coord);
+	bool accumulate{ false };
+	int samplesPerPixel{ 0 };
+	std::vector<glm::vec3> frameBuffer;
 
+	void resetAccumulator();
+
+private:
 	// cast ray out into scene, see where it goes, and determin color off that
 	glm::vec3 traceRay(Ray ray, const Scene& scene);
 

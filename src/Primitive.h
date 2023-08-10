@@ -17,6 +17,7 @@ struct Material
 
 	// returns Ks
 	virtual glm::vec3 reflectionCoeff() const = 0;
+	virtual float refractionProbability() const = 0;
 };
 
 struct Metal : public Material
@@ -24,7 +25,7 @@ struct Metal : public Material
 	glm::vec3 baseReflectivity{ 1.f };
 
 	virtual glm::vec3 reflectionCoeff() const;
-
+	virtual float refractionProbability() const;
 };
 
 struct Dielectric : public Material
@@ -33,6 +34,7 @@ struct Dielectric : public Material
 	float ior{ 1.5f };
 	
 	virtual glm::vec3 reflectionCoeff() const;
+	virtual float refractionProbability() const;
 };
 
 struct Intersection
@@ -52,9 +54,9 @@ struct Intersection
 		Refract
 	};
 
-	ReflectionType reflection;
+	//ReflectionType reflection;
 
-	//const bool reflected;
+	//bool reflected{ false };
 	// Ks
 	// Kd
 	// Kt
@@ -82,7 +84,7 @@ struct Primitive
 	// evaluates ray intersects primitive at a given position in world space
 	virtual PotentialIntersection checkRayIntersection(
 		const Ray& r,
-		const glm::vec3& position
+		const glm::vec3& positionWorldSpace
 	) const = 0;
 };
 
@@ -92,7 +94,7 @@ struct Triangle : Primitive
 
 	PotentialIntersection checkRayIntersection(
 		const Ray& r,
-		const glm::vec3& position
+		const glm::vec3& positionWorldSpace
 	) const;
 };
 
@@ -104,6 +106,18 @@ struct Sphere : Primitive
 
 	PotentialIntersection checkRayIntersection(
 		const Ray& r,
-		const glm::vec3& position
+		const glm::vec3& positionWorldSpace
+	) const;
+};
+
+// todo need to fix bug of bright pixels at intersection of plane and other primitives
+struct Plane : Primitive
+{
+	glm::vec3 position{ 0.f };
+	glm::vec3 normal{ 0, 0, 1 };
+
+	PotentialIntersection checkRayIntersection(
+		const Ray& r,
+		const glm::vec3& positionWorldSpace
 	) const;
 };

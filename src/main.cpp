@@ -26,6 +26,9 @@ static constexpr sf::Keyboard::Key UP{ sf::Keyboard::Key::Space };
 static constexpr sf::Keyboard::Key DOWN{ sf::Keyboard::Key::LShift };
 static constexpr sf::Keyboard::Key CLOSE{ sf::Keyboard::Key::Escape };
 
+static constexpr sf::Keyboard::Key ENABLE_ACCUMULATION{ sf::Keyboard::Key::Equal };
+static constexpr sf::Keyboard::Key DISABLE_ACCUMULATION{ sf::Keyboard::Key::Dash };
+
 static constexpr sf::Keyboard::Key CAM_DEBUG{ sf::Keyboard::Key::C };
 
 static constexpr sf::Keyboard::Key CAM_SLOW_SPD_KEY{ sf::Keyboard::Key::Num1 };
@@ -62,13 +65,13 @@ int main()
 
     Scene scene;
  
-    std::shared_ptr<Material> greenMat = std::make_shared<Dielectric>();
+    std::shared_ptr<Dielectric> greenMat = std::make_shared<Dielectric>();
     greenMat->albedo = { 0,1,0 };
     greenMat->roughness = 1;
     greenMat->emissionStrength = .5;
     greenMat->emissionColor = { 0,1,1 };
 
-    std::shared_ptr<Material> redMat = std::make_shared<Dielectric>();
+    std::shared_ptr<Dielectric> redMat = std::make_shared<Dielectric>();
     redMat->albedo = { 1,0,0 };
     redMat->roughness = 0.5;
 
@@ -77,21 +80,28 @@ int main()
     mirrorMat->roughness = 0;
     mirrorMat->ior = 1.5;
 
-    std::shared_ptr<Material> floorMat = std::make_shared<Dielectric>();
+    std::shared_ptr<Dielectric> glassMat = std::make_shared<Dielectric>();
+    glassMat->albedo = { 1,1,1 };
+    glassMat->roughness = 0;
+    glassMat->ior = 1.5;
+    glassMat->opacity = 0;
+
+    std::shared_ptr<Dielectric> floorMat = std::make_shared<Dielectric>();
     floorMat->albedo = { 0.6f, 0.6f, 1.f };
     floorMat->roughness = .1;
 
-    std::shared_ptr<Material> whiteMat = std::make_shared<Dielectric>();
+    std::shared_ptr<Dielectric> whiteMat = std::make_shared<Dielectric>();
     whiteMat->albedo = { 1,1,1 };
     whiteMat->roughness = 0.9;
 
-    std::shared_ptr<Material> lightMat = std::make_shared<Dielectric>();
+    std::shared_ptr<Dielectric> lightMat = std::make_shared<Dielectric>();
     lightMat->albedo = { 1,1,1 };
     lightMat->roughness = 1;
     lightMat->emissionStrength = 1;
     lightMat->emissionColor = { 1,.9,.8 };
 
-    // create scene
+    /// create scene
+    // snowman
     {
         Geometry snowmanObject;    // scene will have one object
 
@@ -127,6 +137,7 @@ int main()
         //scene.add(snowmanObject);
     }
 
+    // floor
     {
         Geometry floorObject;
         Sphere floor;
@@ -140,6 +151,7 @@ int main()
         scene.add(floorObject);
     }
 
+    // sun
     {
         Geometry lightObject;
         Sphere light;
@@ -153,6 +165,7 @@ int main()
         //scene.add(lightObject);
     }
 
+    // 3 balls
     {
         Geometry object;
 
@@ -165,7 +178,7 @@ int main()
         Sphere watermelon;
         watermelon.position = { -2,0,0 };
 
-        mirror.material = mirrorMat;
+        mirror.material = glassMat;
         tomato.material = redMat;
         watermelon.material = greenMat;
 
@@ -175,6 +188,35 @@ int main()
 
         object.position = { 0, 0, -2 };
         scene.add(object);
+    }
+
+    // plane
+    {
+        Geometry planeObject;
+        Plane plane;
+
+        plane.material = mirrorMat;
+
+        planeObject.add(plane);
+        planeObject.position = { 10,10,0 };
+
+        scene.add(planeObject);
+    }
+
+    // triangle
+    {
+        Geometry triangleObject;
+        Triangle triangle;
+
+        triangle.material = greenMat;
+        triangle.vertices[0] = { 0, 0, 0 };
+        triangle.vertices[1] = { 0.5, 1, 0 };
+        triangle.vertices[2] = { 1, 0, 0 };
+
+        triangleObject.add(triangle);
+        triangleObject.position = { 5,3,-3 };
+
+        scene.add(triangleObject);
     }
 
     Renderer renderer;
@@ -187,10 +229,14 @@ int main()
     sf::Vector2i mPosCur{ sf::Mouse::getPosition() };
 
     float camMoveSpd{ CAM_MED_SPD };
+    
+    camera.position = { 4.47687, 3.68359, -5.69153 };
+    camera.pitch = -0.43897;
+    camera.yaw = -23.1138;
 
-    camera.position = { -1.89711, 2.31398, 0.773041 };
-    camera.pitch = -0.573735;
-    camera.yaw = -13.6802;
+    camera.position = { 7.36602, -1.01464, -0.0114288 };
+    camera.pitch = -0.819829;
+    camera.yaw = -23.5943;
 
     int tick{};
 
@@ -199,6 +245,7 @@ int main()
         if (window)
             window->update();
 
+        // handle input
         {
             // keyboard input for moving camera pos
             if (sf::Keyboard::isKeyPressed(FORWARD))
@@ -216,6 +263,13 @@ int main()
             if (sf::Keyboard::isKeyPressed(CLOSE))
                 return 0;
 
+            if (sf::Keyboard::isKeyPressed(ENABLE_ACCUMULATION))
+                renderer.accumulate = true;
+            if (sf::Keyboard::isKeyPressed(DISABLE_ACCUMULATION))
+            {
+                renderer.accumulate = false;
+                renderer.resetAccumulator();
+            }
             if (sf::Keyboard::isKeyPressed(CAM_DEBUG))
             {
                 const auto& c = camera;
@@ -254,7 +308,9 @@ int main()
         // ...
 
         // update camera
-        camera.pitch = std::clamp(camera.pitch, -glm::half_pi<float>(), glm::half_pi<float>());
+        const float minPitch{ -glm::half_pi<float>() + 0.01f };
+        const float maxPitch{  glm::half_pi<float>() - 0.01f };
+        camera.pitch = std::clamp(camera.pitch, minPitch, maxPitch);
 
         camera.updateViewMat();
 

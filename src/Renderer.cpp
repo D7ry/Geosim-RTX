@@ -12,6 +12,12 @@
 
 void Renderer::render(const Scene& scene, const Camera& camera, Image& image)
 {
+	if (frameBuffer.size() != image.pixels.size())
+	{
+		frameBuffer.clear();
+		frameBuffer.resize(image.pixels.size());
+	}
+
 	aspectRatio = (float)image.width / image.height;	// w : h
 
 	// todo figure out why FOV seems "off"
@@ -19,10 +25,12 @@ void Renderer::render(const Scene& scene, const Camera& camera, Image& image)
 
 	for (int y = 0; y < image.height; ++y)
 		for (int x = 0; x < image.width; ++x)
-		{
+	{
+			const int index = x + (y * image.width);
+
 			// misc debug stuff
 			const glm::uvec2 debugRay{ image.width / 2, image.height / 2 };
-			isDebugRay = (x == debugRay.x && y == debugRay.y);
+			//isDebugRay = (x == debugRay.x && y == debugRay.y);
 			
 			if constexpr (!INTERACTIVE_MODE)
 			{
@@ -47,7 +55,7 @@ void Renderer::render(const Scene& scene, const Camera& camera, Image& image)
 				(y + 0.5f) / image.height
 			};
 
-			glm::vec3 pixelColor{ 0.f };
+			glm::vec3 color{ 0.f };
 
 			for (int i = 0; i < RAYS_PER_PIXEL; ++i)
 			{
@@ -80,7 +88,7 @@ void Renderer::render(const Scene& scene, const Camera& camera, Image& image)
 				// ray coords in world space
 				glm::vec4 start{ camera.position, 1.f };
 				glm::vec4 dir{ coord.x, coord.y, -1.f, 1.f };
-				
+
 				// transform ray to view space
 				dir = dir * camera.viewMat;
 
@@ -89,12 +97,21 @@ void Renderer::render(const Scene& scene, const Camera& camera, Image& image)
 					dir
 				};
 
-				pixelColor += traceRay(ray, scene);
+				if (!accumulate)
+					resetAccumulator();
+
+				isDebugRay = index == 3846;
+				
+				color += traceRay(ray, scene);
+
+				frameBuffer[index] += color;
 			}
 
+			glm::vec3 pixelColor{ frameBuffer[index] };
+
 			// average color
-			pixelColor /= RAYS_PER_PIXEL;
-			
+			pixelColor /= samplesPerPixel * RAYS_PER_PIXEL;
+
 			// normalize color
 			pixelColor.r = std::clamp(pixelColor.r, 0.f, 1.f);
 			pixelColor.g = std::clamp(pixelColor.g, 0.f, 1.f);
@@ -115,6 +132,14 @@ void Renderer::render(const Scene& scene, const Camera& camera, Image& image)
 			// actually setting pixel
 			image.setPixel(ndc, pixelColor);
 		}
+
+	samplesPerPixel++;
+}
+
+void Renderer::resetAccumulator()
+{
+	std::fill(frameBuffer.begin(), frameBuffer.end(), glm::vec3{ 0 });
+	samplesPerPixel = 1;
 }
 
 glm::vec3 Renderer::traceRay(Ray ray, const Scene& scene)
@@ -129,6 +154,8 @@ glm::vec3 Renderer::traceRay(Ray ray, const Scene& scene)
 
 		if (rayHit)
 		{
+			rngSeed++;
+
 			const Intersection& hit{ potentialIntersection.value() };
 
 			// record intersection
@@ -181,6 +208,7 @@ glm::vec3 Renderer::evaluateLightPath(const Ray& primary, const std::vector<Inte
 
 		// basically the rendering equation
 		incomingLight = emittedLight + (2.f * Math::BRDF(hit) * incomingLight * lightStrength);
+		//incomingLight = emittedLight + (hit.material.albedo * incomingLight * lightStrength);
 	}
 
 	return incomingLight;

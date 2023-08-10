@@ -37,6 +37,9 @@ public:
 	// at t=0 : a, at t=1 : b
 	static glm::vec3 lerp(float t, const glm::vec3& a, const glm::vec3& b);
 
+	// has a percentage probability of returning true
+	static bool probability(float percentage);
+
 	// bad random number generation function which returns normalized double [0,1]
 	static float rng(unsigned state);
 
@@ -60,6 +63,14 @@ public:
 	static std::optional<RayIntersection> rayTriangleIntersection(
 		const Ray& ray,
 		const glm::vec3 vertices[3],
+		float minT = Math::MIN_T,
+		float maxT = Math::MAX_T
+	);
+
+	static std::optional<RayIntersection> rayPlaneIntersection(
+		const Ray& ray,
+		const glm::vec3& p,
+		const glm::vec3& n,
 		float minT = Math::MIN_T,
 		float maxT = Math::MAX_T
 	);
