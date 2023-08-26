@@ -39,11 +39,14 @@ void Renderer::render(const Scene& scene, const Camera& camera, Image& image)
 
 				const float completionPercent{ 100.f * index / numPixels };
 
-				static float prevPercent{ 0.f };
+				// how many pixels per print
+				constexpr unsigned printFreq{ 50 };
 
-				if (completionPercent > prevPercent + 10)
+				static int prevPrintIndex{ 0 };
+
+				if (index > prevPrintIndex + printFreq)
 				{
-					prevPercent = (int)completionPercent;
+					prevPrintIndex = index;
 					std::cout << completionPercent << "%\n";
 				}
 			}
@@ -203,12 +206,12 @@ glm::vec3 Renderer::evaluateLightPath(const Ray& primary, const std::vector<Inte
 
 		// cos(theta) term
 		const float lightStrength{
-			glm::max(0.f, glm::dot(hit.normal, -hit.incidentDir))
+			1//glm::max(0.f, glm::dot(hit.normal, -hit.incidentDir))
 		};
 
 		// basically the rendering equation
-		incomingLight = emittedLight + (2.f * Math::BRDF(hit) * incomingLight * lightStrength);
-		//incomingLight = emittedLight + (hit.material.albedo * incomingLight * lightStrength);
+		//incomingLight = emittedLight + (2.f * Math::BRDF(hit) * incomingLight * lightStrength);
+		incomingLight = emittedLight + (hit.material.albedo * incomingLight * lightStrength);
 	}
 
 	return incomingLight;

@@ -25,6 +25,7 @@ static constexpr sf::Keyboard::Key RIGHT{ sf::Keyboard::Key::D };
 static constexpr sf::Keyboard::Key UP{ sf::Keyboard::Key::Space };
 static constexpr sf::Keyboard::Key DOWN{ sf::Keyboard::Key::LShift };
 static constexpr sf::Keyboard::Key CLOSE{ sf::Keyboard::Key::Escape };
+static constexpr sf::Keyboard::Key RESPAWN{ sf::Keyboard::Key::X };
 
 static constexpr sf::Keyboard::Key ENABLE_ACCUMULATION{ sf::Keyboard::Key::Equal };
 static constexpr sf::Keyboard::Key DISABLE_ACCUMULATION{ sf::Keyboard::Key::Dash };
@@ -75,6 +76,12 @@ int main()
     redMat->albedo = { 1,0,0 };
     redMat->roughness = 0.5;
 
+    std::shared_ptr<Dielectric> evilMat = std::make_shared<Dielectric>();
+    evilMat->albedo = { .7,0,0 };
+    evilMat->roughness = 0.7;
+    evilMat->emissionStrength = .2;
+    evilMat->emissionColor = { 1,0,0 };
+
     std::shared_ptr<Dielectric> mirrorMat = std::make_shared<Dielectric>();
     mirrorMat->albedo = { 1,1,1 };
     mirrorMat->roughness = 0;
@@ -96,8 +103,8 @@ int main()
 
     std::shared_ptr<Dielectric> lightMat = std::make_shared<Dielectric>();
     lightMat->albedo = { 1,1,1 };
-    lightMat->roughness = 1;
-    lightMat->emissionStrength = 1;
+    lightMat->roughness = .5;
+    lightMat->emissionStrength = .5;
     lightMat->emissionColor = { 1,.9,.8 };
 
     /// create scene
@@ -119,9 +126,9 @@ int main()
         bottom.radius = .9;
 
         // assign materials
-        head.material = whiteMat;
-        middle.material = whiteMat;
-        bottom.material = whiteMat;
+        head.material =   lightMat;
+        middle.material = lightMat;
+        bottom.material = lightMat;
 
         // add primitives to object
         snowmanObject.add(head);
@@ -219,26 +226,44 @@ int main()
         scene.add(triangleObject);
     }
 
+    // red thing
     Renderer renderer;
+    {
+        Geometry evilObject;
+        Sphere s;
+
+        s.material = evilMat;
+        s.radius = 5;
+
+        evilObject.add(s);
+        evilObject.position = { -5,-10, 3 };
+
+        scene.add(evilObject);
+    }
     Camera camera;
 
     // to face -z
     camera.yaw = glm::three_over_two_pi<float>();
 
+    camera.position = { 5.07275, 4.13277, -5.65936 };
+    camera.pitch = -0.498047;
+    camera.yaw = 2.15184;
+
     sf::Vector2i mPosPrev{ sf::Mouse::getPosition() };
     sf::Vector2i mPosCur{ sf::Mouse::getPosition() };
 
     float camMoveSpd{ CAM_MED_SPD };
-    
-    camera.position = { 4.47687, 3.68359, -5.69153 };
-    camera.pitch = -0.43897;
-    camera.yaw = -23.1138;
-
-    camera.position = { 7.36602, -1.01464, -0.0114288 };
-    camera.pitch = -0.819829;
-    camera.yaw = -23.5943;
 
     int tick{};
+
+    if constexpr (INTERACTIVE_MODE)
+        std::cout << "Controls:\n"
+        << "Move: WASD LShift Space\n"
+        << "Change Speed: 123\n"
+        << "Accumulate Off/On: -/+\n"
+        << "Respawn: x\n"
+        << "Close: Esc\n"
+        << "Have Fun! (Moving while accumulating is cool)\n";
 
     while (!INTERACTIVE_MODE || window->isOpen())
     {
@@ -262,6 +287,9 @@ int main()
                 camera.position -= camera.upDir * camMoveSpd;
             if (sf::Keyboard::isKeyPressed(CLOSE))
                 return 0;
+
+            if (sf::Keyboard::isKeyPressed(RESPAWN))
+                camera.position = { 0.f, 0.f, 0.f };
 
             if (sf::Keyboard::isKeyPressed(ENABLE_ACCUMULATION))
                 renderer.accumulate = true;
@@ -313,6 +341,9 @@ int main()
         camera.pitch = std::clamp(camera.pitch, minPitch, maxPitch);
 
         camera.updateViewMat();
+
+        if constexpr (!INTERACTIVE_MODE)
+            std::cout << "Starting render... (be patient this might take a while)\n";
 
         /// render scene to image
         renderer.render(scene, camera, image);
