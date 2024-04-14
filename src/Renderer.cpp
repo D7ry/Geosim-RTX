@@ -151,7 +151,7 @@ glm::vec3 Renderer::traceRay(Ray ray, const Scene& scene)
 
 	for (int i = 0; i <= MAX_NUM_BOUNCES; ++i)
 	{
-		auto potentialIntersection = getClosestIntersection(ray, scene);
+		auto potentialIntersection = getClosestIntersectionMarch(ray, scene);
 	
 		const bool rayHit{ potentialIntersection.has_value() };
 
@@ -165,7 +165,7 @@ glm::vec3 Renderer::traceRay(Ray ray, const Scene& scene)
 			hits.push_back(hit);
 
 			// redirect ray at point of intersection
-			ray = Ray{ hit.position, hit.outgoingDir };
+			ray = Ray{ hit.position + (hit.outgoingDir * 0.02f), hit.outgoingDir };
 		}
 		else
 			break;
@@ -242,6 +242,109 @@ PotentialIntersection Renderer::getClosestIntersection(const Ray& ray, const Sce
 		return *closestHit.get();
 
 	return std::nullopt;
+}
+
+PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, const Scene& scene)
+{
+	std::unique_ptr<Intersection> closestHit;
+
+	float totalDistanceTraveled = 0.0;
+	const int MAX_NUM_STEPS = 128;
+	const float MIN_HIT_DISTANCE = 0.001;
+	const float MAX_TRACE_DISTANCE = 1000.0;
+
+	glm::vec3 marchPos{ ray.origin };
+
+	for (int i = 0; i < MAX_NUM_STEPS; ++i)
+	{
+		const auto closest = getClosestPrimitive(marchPos, scene);
+
+		const double dist = closest.first;
+
+		// we hit something
+		if (dist < MIN_HIT_DISTANCE)
+		{
+			const Primitive& primitive = closest.second;
+			const glm::vec3 normal = computeNormal(marchPos, scene);
+			RayIntersection rayIntersection{ ray, -1, marchPos, normal };
+			Intersection i{ *primitive.material.get(), rayIntersection };
+
+			closestHit = std::make_unique<Intersection>(i);
+		}
+		else if (totalDistanceTraveled > MAX_TRACE_DISTANCE)
+		{
+			break;
+		}
+		else
+		{
+			marchPos += (float)dist * ray.dir;
+			totalDistanceTraveled += dist;
+		}
+	}
+
+	if (closestHit)
+		return *closestHit.get();
+
+	return std::nullopt;
+}
+
+std::pair<double, const Primitive&> Renderer::getClosestPrimitive(const glm::vec3& p, const Scene& scene)
+{
+	double minDistance{ 1000000 };
+	const Primitive* minDistancePrimitive{ nullptr };
+	for (const Geometry& object : scene.geometry)
+		for (const auto& primitivePtr : object.primitives)
+		{
+			const Primitive& primitive = *primitivePtr.get();
+			const double d = primitive.SDF(p, object.position);
+			
+			if (d < minDistance)
+			{
+				minDistance = std::min(minDistance, d);
+				minDistancePrimitive = &primitive;
+			}
+		}
+
+	if (minDistancePrimitive == nullptr)
+		std::cout << "brb, bouta crash\n";
+
+	return { minDistance, *minDistancePrimitive };
+}
+
+double Renderer::getClosestDistance(const glm::vec3& p, const Scene& scene)
+{
+	double minDistance{ 1000000 };
+	for (const Geometry& object : scene.geometry)
+		for (const auto& primitivePtr : object.primitives)
+		{
+			const Primitive& primitive = *primitivePtr.get();
+			const double d = primitive.SDF(p, object.position);
+
+			minDistance = std::min(minDistance, d);
+		}
+
+	return minDistance;
+}
+
+// https://michaelwalczyk.com/blog-ray-marching.html
+// optimization opportunities:
+// Higher-Order Finite Differences
+// Precomputed Normals
+// Parallelization (duh)
+glm::vec3 Renderer::computeNormal(const glm::vec3 p, const Scene& scene)
+{
+	static constexpr float DELTA{ 0.001 };
+	static constexpr glm::vec3 DX{ DELTA, 0, 0 };
+	static constexpr glm::vec3 DY{ 0, DELTA, 0 };
+	static constexpr glm::vec3 DZ{ 0, 0, DELTA };
+
+	float xGradient = getClosestDistance(p + DX, scene) - getClosestDistance(p - DX, scene);
+	float yGradient = getClosestDistance(p + DY, scene) - getClosestDistance(p - DY, scene);
+	float zGradient = getClosestDistance(p + DZ, scene) - getClosestDistance(p - DZ, scene);
+
+	const glm::vec3 normal{ xGradient, yGradient, zGradient };
+
+	return glm::normalize(normal);
 }
 
 glm::vec3 Renderer::environmentalLight(const glm::vec3& dir)

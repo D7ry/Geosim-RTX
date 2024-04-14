@@ -65,6 +65,11 @@ PotentialIntersection Sphere::checkRayIntersection(
     return Intersection{ *material.get(), intersection.value()};
 }
 
+double Sphere::SDF(const glm::vec3& p, const glm::vec3& positionWorldSpace) const
+{
+    return Math::sphereSDF(p - positionWorldSpace - this->position, this->radius);
+}
+
 // triangle
 PotentialIntersection Triangle::checkRayIntersection(
     const Ray& r,
@@ -84,6 +89,12 @@ PotentialIntersection Triangle::checkRayIntersection(
     return Intersection{ *material.get(), intersection.value() };
 }
 
+double Triangle::SDF(const glm::vec3& p, const glm::vec3& positionWorldSpace) const
+{
+    // todo
+    return 10000.0;
+}
+
 // plane
 PotentialIntersection Plane::checkRayIntersection(
     const Ray& r,
@@ -101,6 +112,12 @@ PotentialIntersection Plane::checkRayIntersection(
     intersection.value().position += positionWorldSpace;
 
     return Intersection{ *material.get(), intersection.value() };
+}
+
+double Plane::SDF(const glm::vec3& p, const glm::vec3& positionWorldSpace) const
+{
+    // todo
+    return 10000.0;
 }
 
 glm::vec3 Metal::reflectionCoeff() const

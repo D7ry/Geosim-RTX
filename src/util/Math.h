@@ -144,4 +144,6 @@ public:
 		float roughness
 	);
 
+	static double sphereSDF(const glm::vec3& p, float r);
+
 };

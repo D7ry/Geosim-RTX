@@ -17,10 +17,10 @@ inline constexpr unsigned WINDOW_SCALE{ 1 << 3 };
 // dont modify here
 inline int rngSeed{ 0 };
 inline unsigned globalTick{ 0 };
-inline bool isDebugRay{ false };
+inline bool isDebugRay{ true };
 
-inline constexpr bool DEBUG{ false && INTERACTIVE_MODE };
-inline constexpr bool PRINT_DEBUG{ true && DEBUG };
+inline constexpr bool DEBUG{ true && INTERACTIVE_MODE };
+inline constexpr bool PRINT_DEBUG{ false && DEBUG };
 inline constexpr bool VISUALIZE_DEBUG_RAY{ true && DEBUG };
 
-inline constexpr bool ANTIALIAS{ true };
+inline constexpr bool ANTIALIAS{ false };

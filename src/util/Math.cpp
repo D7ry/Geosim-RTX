@@ -322,3 +322,8 @@ float Math::SchlickGGX(
 
 	return G(w_i, n, k) * G(w_o, n, k);
 }
+
+double Math::sphereSDF(const glm::vec3& p, float r)
+{
+	return glm::length(p) - r;
+}

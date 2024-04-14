@@ -32,6 +32,11 @@ private:
 	glm::vec3 evaluateLightPath(const Ray& primary, const std::vector<Intersection>& hits);
 
 	PotentialIntersection getClosestIntersection(const Ray& ray, const Scene& scene);
+	PotentialIntersection getClosestIntersectionMarch(const Ray& ray, const Scene& scene);
+	std::pair<double, const Primitive&> getClosestPrimitive(const glm::vec3& p, const Scene& scene);
+	double getClosestDistance(const glm::vec3& p, const Scene& scene);
+
+	glm::vec3 computeNormal(const glm::vec3 p, const Scene& scene);
 
 	glm::vec3 environmentalLight(const glm::vec3& dir);
 

@@ -141,7 +141,7 @@ int main()
 
         // add another, positioned elsewhere
         snowmanObject.position = { 3, 2, -4 };
-        //scene.add(snowmanObject);
+        scene.add(snowmanObject);
     }
 
     // floor

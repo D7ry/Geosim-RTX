@@ -86,6 +86,11 @@ struct Primitive
 		const Ray& r,
 		const glm::vec3& positionWorldSpace
 	) const = 0;
+
+	virtual double SDF(
+		const glm::vec3& p,
+		const glm::vec3& positionWorldSpace
+	) const = 0;
 };
 
 struct Triangle : Primitive
@@ -94,6 +99,11 @@ struct Triangle : Primitive
 
 	PotentialIntersection checkRayIntersection(
 		const Ray& r,
+		const glm::vec3& positionWorldSpace
+	) const;
+
+	double SDF(
+		const glm::vec3& p,
 		const glm::vec3& positionWorldSpace
 	) const;
 };
@@ -108,6 +118,11 @@ struct Sphere : Primitive
 		const Ray& r,
 		const glm::vec3& positionWorldSpace
 	) const;
+
+	double SDF(
+		const glm::vec3& p,
+		const glm::vec3& positionWorldSpace
+	) const;
 };
 
 // todo need to fix bug of bright pixels at intersection of plane and other primitives
@@ -118,6 +133,11 @@ struct Plane : Primitive
 
 	PotentialIntersection checkRayIntersection(
 		const Ray& r,
+		const glm::vec3& positionWorldSpace
+	) const;
+
+	double SDF(
+		const glm::vec3& p,
 		const glm::vec3& positionWorldSpace
 	) const;
 };
