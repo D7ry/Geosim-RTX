@@ -144,6 +144,21 @@ public:
 		float roughness
 	);
 
-	static double sphereSDF(const glm::vec3& p, float r);
+	static double euclideanSphereSDF(const glm::vec4& p, float r);
+	static double hyperbolicSphereSDF(const glm::vec4& p, float r);
+
+	static glm::mat4 generateHyperbolicExponentialMap(const glm::vec3& displacement);
+
+	static std::pair<glm::vec4, glm::vec4> geodesicFlowEuclidean(
+		const glm::vec4& pos,
+		const glm::vec4& dir,
+		float t
+	);
+
+	static std::pair<glm::vec4, glm::vec4> geodesicFlowHyperbolic(
+		const glm::vec4& pos,
+		const glm::vec4& dir,
+		float t
+	);
 
 };

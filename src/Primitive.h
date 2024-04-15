@@ -88,8 +88,8 @@ struct Primitive
 	) const = 0;
 
 	virtual double SDF(
-		const glm::vec3& p,
-		const glm::vec3& positionWorldSpace
+		const glm::vec4& p,
+		const glm::vec4& positionWorldSpace
 	) const = 0;
 };
 
@@ -103,8 +103,8 @@ struct Triangle : Primitive
 	) const;
 
 	double SDF(
-		const glm::vec3& p,
-		const glm::vec3& positionWorldSpace
+		const glm::vec4& p,
+		const glm::vec4& positionWorldSpace
 	) const;
 };
 
@@ -120,8 +120,8 @@ struct Sphere : Primitive
 	) const;
 
 	double SDF(
-		const glm::vec3& p,
-		const glm::vec3& positionWorldSpace
+		const glm::vec4& p,
+		const glm::vec4& positionWorldSpace
 	) const;
 };
 
@@ -137,7 +137,7 @@ struct Plane : Primitive
 	) const;
 
 	double SDF(
-		const glm::vec3& p,
-		const glm::vec3& positionWorldSpace
+		const glm::vec4& p,
+		const glm::vec4& positionWorldSpace
 	) const;
 };

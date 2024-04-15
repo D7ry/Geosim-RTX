@@ -30,7 +30,7 @@ void Renderer::render(const Scene& scene, const Camera& camera, Image& image)
 
 			// misc debug stuff
 			const glm::uvec2 debugRay{ image.width / 2, image.height / 2 };
-			//isDebugRay = (x == debugRay.x && y == debugRay.y);
+			isDebugRay = (x == debugRay.x && y == debugRay.y);
 			
 			if constexpr (!INTERACTIVE_MODE)
 			{
@@ -103,7 +103,7 @@ void Renderer::render(const Scene& scene, const Camera& camera, Image& image)
 				if (!accumulate)
 					resetAccumulator();
 
-				isDebugRay = index == 3846;
+				//isDebugRay = index == 3846;
 				
 				color += traceRay(ray, scene);
 
@@ -161,6 +161,9 @@ glm::vec3 Renderer::traceRay(Ray ray, const Scene& scene)
 
 			const Intersection& hit{ potentialIntersection.value() };
 
+			if (DISPLAY_NORMALS)
+				return (hit.normal/2.f) + .5f;
+
 			// record intersection
 			hits.push_back(hit);
 
@@ -171,7 +174,7 @@ glm::vec3 Renderer::traceRay(Ray ray, const Scene& scene)
 			break;
 	}
 
-	if (PRINT_DEBUG && isDebugRay)
+	if (PRINT_DEBUG_LIGHTING && isDebugRay)
 	{
 		debugRayCast(ray, hits);
 		debugLightPath(ray, hits);
@@ -249,38 +252,71 @@ PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, cons
 	std::unique_ptr<Intersection> closestHit;
 
 	float totalDistanceTraveled = 0.0;
-	const int MAX_NUM_STEPS = 128;
-	const float MIN_HIT_DISTANCE = 0.001;
-	const float MAX_TRACE_DISTANCE = 1000.0;
+	const int MAX_NUM_STEPS = 64;
+	const float MIN_HIT_DISTANCE = .1;
+	const float MAX_TRACE_DISTANCE = 100000.0;
 
-	glm::vec3 marchPos{ ray.origin };
+	glm::vec4 marchPos{ ray.origin, 1 };
+	glm::vec4 marchDir{ ray.dir, 0 };
+
+	auto toStr = [](const glm::vec3& v)
+	{
+		// takes float and returns string to 3 decimals
+		auto helper = [](float f)
+		{
+			std::string s = std::to_string(f);
+			return s.substr(0, s.find(".") + 4);
+		};
+
+		return std::string{ "(" + helper(v.x) + ", " + helper(v.y) + ", " + helper(v.z) + ")" };
+	};
+
+	if (isDebugRay && PRINT_DEBUG_MARCHING && !EUCLIDEAN)
+		std::cout << "Starting March!\n";
 
 	for (int i = 0; i < MAX_NUM_STEPS; ++i)
 	{
 		const auto closest = getClosestPrimitive(marchPos, scene);
 
-		const double dist = closest.first;
+		double dist = closest.first;
 
 		// we hit something
 		if (dist < MIN_HIT_DISTANCE)
 		{
 			const Primitive& primitive = closest.second;
-			const glm::vec3 normal = computeNormal(marchPos, scene);
+			//const glm::vec3 normal = computeNormal(marchPos, scene);
+			const glm::vec3 normal = primitive.material.get()->albedo; // for rough quick rendering/debugging
 			RayIntersection rayIntersection{ ray, -1, marchPos, normal };
 			Intersection i{ *primitive.material.get(), rayIntersection };
 
 			closestHit = std::make_unique<Intersection>(i);
 		}
-		else if (totalDistanceTraveled > MAX_TRACE_DISTANCE)
+		else if (totalDistanceTraveled > MAX_TRACE_DISTANCE || dist > MAX_TRACE_DISTANCE)
 		{
 			break;
 		}
 		else
 		{
-			marchPos += (float)dist * ray.dir;
-			totalDistanceTraveled += dist;
+			const float ss{ (float)dist / 1 };
+			while (dist > 0)
+			{
+				auto newMarch = march(marchPos, marchDir, ss);
+				marchPos = newMarch.first;
+				marchDir = newMarch.second;
+				totalDistanceTraveled += ss;
+				dist -= ss;
+
+				if (isDebugRay && PRINT_DEBUG_MARCHING && !EUCLIDEAN)
+					std::cout << "Step size: " << dist 
+					<< ", sub step size: " << ss
+					<< ", pos: " << toStr(marchPos) 
+					<< ", dir: " << toStr(marchDir) << '\n';
+			}
 		}
 	}
+
+	if (isDebugRay && PRINT_DEBUG_MARCHING && !EUCLIDEAN)
+		std::cout << totalDistanceTraveled << '\n';
 
 	if (closestHit)
 		return *closestHit.get();
@@ -290,13 +326,15 @@ PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, cons
 
 std::pair<double, const Primitive&> Renderer::getClosestPrimitive(const glm::vec3& p, const Scene& scene)
 {
-	double minDistance{ 1000000 };
+	double minDistance{ 100000000 };
 	const Primitive* minDistancePrimitive{ nullptr };
 	for (const Geometry& object : scene.geometry)
 		for (const auto& primitivePtr : object.primitives)
 		{
 			const Primitive& primitive = *primitivePtr.get();
-			const double d = primitive.SDF(p, object.position);
+
+			// todo: is w supposed to be 0?
+			const double d = primitive.SDF(glm::vec4{ p,0 }, glm::vec4{ object.position, 0 });
 			
 			if (d < minDistance)
 			{
@@ -305,8 +343,8 @@ std::pair<double, const Primitive&> Renderer::getClosestPrimitive(const glm::vec
 			}
 		}
 
-	if (minDistancePrimitive == nullptr)
-		std::cout << "brb, bouta crash\n";
+	//if (minDistancePrimitive == nullptr)
+	//	std::cout << "brb, bouta crash\n";
 
 	return { minDistance, *minDistancePrimitive };
 }
@@ -318,7 +356,7 @@ double Renderer::getClosestDistance(const glm::vec3& p, const Scene& scene)
 		for (const auto& primitivePtr : object.primitives)
 		{
 			const Primitive& primitive = *primitivePtr.get();
-			const double d = primitive.SDF(p, object.position);
+			const double d = primitive.SDF(glm::vec4{ p,1 }, glm::vec4{ object.position, 1 });
 
 			minDistance = std::min(minDistance, d);
 		}
@@ -367,6 +405,18 @@ glm::vec3 Renderer::environmentalLight(const glm::vec3& dir)
 	};
 
 	return light;
+}
+
+std::pair<glm::vec4, glm::vec4> Renderer::march(
+	const glm::vec4& pos, 
+	const glm::vec4& dir, 
+	float dist
+)
+{
+	if (EUCLIDEAN)
+		return Math::geodesicFlowEuclidean(pos, dir, dist);
+	else
+		return Math::geodesicFlowHyperbolic(pos, dir, dist);
 }
 
 void Renderer::debugRayCast(const Ray& primary, std::vector<Intersection>& hits)

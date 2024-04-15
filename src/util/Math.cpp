@@ -323,7 +323,53 @@ float Math::SchlickGGX(
 	return G(w_i, n, k) * G(w_o, n, k);
 }
 
-double Math::sphereSDF(const glm::vec3& p, float r)
+double Math::euclideanSphereSDF(const glm::vec4& p, float r)
 {
-	return glm::length(p) - r;
+	return glm::length(glm::vec3(p)) - r;
+}
+
+double Math::hyperbolicSphereSDF(const glm::vec4& p, float r)
+{
+	return glm::acosh(p.w) - r;
+}
+
+glm::mat4 Math::generateHyperbolicExponentialMap(const glm::vec3& dr)
+{
+	const glm::mat4 M = {
+		0,	  0,	0,	  dr.x,
+		0,	  0,	0,	  dr.y,
+		0,	  0,	0,	  dr.z,
+		dr.x, dr.y, dr.z, 0
+	};
+
+	const float len{ glm::length(dr) };
+	static constexpr glm::mat4 I{ 1 };
+
+	const glm::mat4 exp{
+		I + 
+		(glm::sinh(len) / len) * M + 
+		((glm::cosh(len) - 1.f) / (len * len)) * (M * M)
+	};
+	
+	return exp;
+}
+
+std::pair<glm::vec4, glm::vec4> Math::geodesicFlowEuclidean(
+	const glm::vec4& pos, 
+	const glm::vec4& dir, 
+	float t
+)
+{
+	return { pos + t*dir, dir };
+}
+
+std::pair<glm::vec4, glm::vec4> Math::geodesicFlowHyperbolic(
+	const glm::vec4& pos, 
+	const glm::vec4& dir, 
+	float t
+)
+{
+	const glm::vec4 nextPos{ glm::cosh(t) * pos + glm::sinh(t) * dir };
+	const glm::vec4 nextDir{ glm::sinh(t) * pos + glm::cosh(t) * dir };
+	return { nextPos, glm::normalize(nextDir) };
 }

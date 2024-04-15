@@ -2,12 +2,12 @@
 
 inline constexpr bool INTERACTIVE_MODE{ 1 };
 
-inline constexpr int RAYS_PER_PIXEL{ INTERACTIVE_MODE ? 1 : 200 };
+inline constexpr int RAYS_PER_PIXEL{ INTERACTIVE_MODE ? 1 : 1 };
 
-inline constexpr int MAX_NUM_BOUNCES{ INTERACTIVE_MODE ? 4 : 6 };
+inline constexpr int MAX_NUM_BOUNCES{ INTERACTIVE_MODE ? 3 : 4 };
 
-inline constexpr int OFFLINE_WIDTH{ 16 << 6 };
-inline constexpr int OFFLINE_HEIGHT{ 9 << 6 };
+inline constexpr int OFFLINE_WIDTH{ 16 << 5 };
+inline constexpr int OFFLINE_HEIGHT{ 9 << 5 };
 
 inline constexpr int INTERACTIVE_WIDTH{ 16 << 3 };
 inline constexpr int INTERACTIVE_HEIGHT{ 9 << 3 };
@@ -17,10 +17,16 @@ inline constexpr unsigned WINDOW_SCALE{ 1 << 3 };
 // dont modify here
 inline int rngSeed{ 0 };
 inline unsigned globalTick{ 0 };
-inline bool isDebugRay{ true };
+inline bool isDebugRay{};
 
 inline constexpr bool DEBUG{ true && INTERACTIVE_MODE };
-inline constexpr bool PRINT_DEBUG{ false && DEBUG };
+inline constexpr bool PRINT_DEBUG_LIGHTING{ false && DEBUG };
+inline constexpr bool PRINT_DEBUG_MARCHING{ false && DEBUG };
 inline constexpr bool VISUALIZE_DEBUG_RAY{ true && DEBUG };
 
+inline constexpr bool DISPLAY_NORMALS{ true };
+
 inline constexpr bool ANTIALIAS{ false };
+
+inline constexpr bool RAY_MARCH{ true };
+inline constexpr bool EUCLIDEAN{ false && RAY_MARCH };

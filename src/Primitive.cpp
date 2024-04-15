@@ -65,9 +65,26 @@ PotentialIntersection Sphere::checkRayIntersection(
     return Intersection{ *material.get(), intersection.value()};
 }
 
-double Sphere::SDF(const glm::vec3& p, const glm::vec3& positionWorldSpace) const
+double Sphere::SDF(const glm::vec4& p, const glm::vec4& positionWorldSpace) const
 {
-    return Math::sphereSDF(p - positionWorldSpace - this->position, this->radius);
+    const glm::vec3 displacement{ glm::vec3(positionWorldSpace) + this->position };
+    
+    // todo: figure out how this works and when to use
+    //const glm::mat4 translation{ Math::generateHyperbolicExponentialMap(displacement) };
+    //const glm::vec4 d{ translation * glm::vec4(displacement, 0) };
+
+
+    ////// NOTICE: hyperbolic sphere SDF does not work, almost always returns NAN
+    //if (EUCLIDEAN)
+        return Math::euclideanSphereSDF(
+            p - glm::vec4(displacement, 0), // todo: is w supposed to be 0?
+            this->radius
+        );
+    //else
+    //   return Math::hyperbolicSphereSDF(
+    //       p - glm::vec4(displacement, 1), // todo: is w supposed to be 0?
+    //       this->radius
+    //   );
 }
 
 // triangle
@@ -89,7 +106,7 @@ PotentialIntersection Triangle::checkRayIntersection(
     return Intersection{ *material.get(), intersection.value() };
 }
 
-double Triangle::SDF(const glm::vec3& p, const glm::vec3& positionWorldSpace) const
+double Triangle::SDF(const glm::vec4& p, const glm::vec4& positionWorldSpace) const
 {
     // todo
     return 10000.0;
@@ -114,7 +131,7 @@ PotentialIntersection Plane::checkRayIntersection(
     return Intersection{ *material.get(), intersection.value() };
 }
 
-double Plane::SDF(const glm::vec3& p, const glm::vec3& positionWorldSpace) const
+double Plane::SDF(const glm::vec4& p, const glm::vec4& positionWorldSpace) const
 {
     // todo
     return 10000.0;

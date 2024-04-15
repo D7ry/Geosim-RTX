@@ -40,6 +40,12 @@ private:
 
 	glm::vec3 environmentalLight(const glm::vec3& dir);
 
+	std::pair<glm::vec4, glm::vec4> march(
+		const glm::vec4& pos, 
+		const glm::vec4& dir, 
+		float dist
+	);
+
 	void debugRayCast(const Ray& primary, std::vector<Intersection>& hits);
 	void debugLightPath(const Ray& primary, std::vector<Intersection>& hits);
 

@@ -109,6 +109,7 @@ int main()
 
     /// create scene
     // snowman
+    if (true)
     {
         Geometry snowmanObject;    // scene will have one object
 
@@ -142,9 +143,14 @@ int main()
         // add another, positioned elsewhere
         snowmanObject.position = { 3, 2, -4 };
         scene.add(snowmanObject);
+
+        // add another, positioned elsewhere
+        //snowmanObject.position = { 103, 125, -34 };
+        //scene.add(snowmanObject);
     }
 
     // floor
+    if (true)
     {
         Geometry floorObject;
         Sphere floor;
@@ -159,6 +165,7 @@ int main()
     }
 
     // sun
+    if (EUCLIDEAN)
     {
         Geometry lightObject;
         Sphere light;
@@ -169,10 +176,11 @@ int main()
         lightObject.add(light);
         lightObject.position = { 0, 1234, 0 };
 
-        //scene.add(lightObject);
+        scene.add(lightObject);
     }
 
     // 3 balls
+    if (true)
     {
         Geometry object;
 
@@ -198,6 +206,7 @@ int main()
     }
 
     // plane
+    if (EUCLIDEAN)
     {
         Geometry planeObject;
         Plane plane;
@@ -211,6 +220,7 @@ int main()
     }
 
     // triangle
+    if (EUCLIDEAN)
     {
         Geometry triangleObject;
         Triangle triangle;
@@ -227,7 +237,7 @@ int main()
     }
 
     // red thing
-    Renderer renderer;
+    if (EUCLIDEAN)
     {
         Geometry evilObject;
         Sphere s;
@@ -240,14 +250,19 @@ int main()
 
         scene.add(evilObject);
     }
+
+    Renderer renderer;
     Camera camera;
 
     // to face -z
     camera.yaw = glm::three_over_two_pi<float>();
 
-    camera.position = { 5.07275, 4.13277, -5.65936 };
-    camera.pitch = -0.498047;
-    camera.yaw = 2.15184;
+    camera.position = { 0,0,0 };
+    camera.pitch = 0;
+
+    camera.position = { 0.0242337, -0.57934, -0.0275188 };
+    camera.pitch = 0.896479;
+    camera.yaw = 4.71238;
 
     sf::Vector2i mPosPrev{ sf::Mouse::getPosition() };
     sf::Vector2i mPosCur{ sf::Mouse::getPosition() };
