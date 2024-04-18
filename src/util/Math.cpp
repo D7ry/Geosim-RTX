@@ -10,6 +10,11 @@
 
 #include "../Settings.h"
 
+#include <iostream>
+
+#include <string>
+
+
 Ray::Ray(const glm::vec3& origin, const glm::vec3& dir)
 	:
 	origin{ origin },
@@ -323,14 +328,22 @@ float Math::SchlickGGX(
 	return G(w_i, n, k) * G(w_o, n, k);
 }
 
-double Math::euclideanSphereSDF(const glm::vec4& p, float r)
+double Math::euclideanSphereSDF(
+	const glm::vec4& p, 
+	float r,
+	const glm::vec4& center
+)
 {
-	return glm::length(glm::vec3(p)) - r;
+	return glm::length(glm::vec3(p - center)) - r;
 }
 
-double Math::hyperbolicSphereSDF(const glm::vec4& p, float r)
+double Math::hyperbolicSphereSDF(
+	const glm::vec4& p, 
+	float r,
+	const glm::vec4& center
+)
 {
-	return glm::acosh(p.w) - r;
+	return hypDistance(p, center) - r;
 }
 
 glm::mat4 Math::generateHyperbolicExponentialMap(const glm::vec3& dr)
@@ -369,7 +382,251 @@ std::pair<glm::vec4, glm::vec4> Math::geodesicFlowHyperbolic(
 	float t
 )
 {
-	const glm::vec4 nextPos{ glm::cosh(t) * pos + glm::sinh(t) * dir };
-	const glm::vec4 nextDir{ glm::sinh(t) * pos + glm::cosh(t) * dir };
-	return { nextPos, glm::normalize(nextDir) };
+	return { hypGeoFlowPos(pos, dir, t), hypGeoFlowDir(pos, dir, t) };
+}
+
+glm::vec4 Math::hypGeoFlowPos(const glm::vec4& pos, const glm::vec4& dir, float t)
+{
+	return { cosh(t)*pos + sinh(t)*dir };
+}
+
+glm::vec4 Math::hypGeoFlowDir(const glm::vec4& pos, const glm::vec4& dir, float t)
+{
+	return { sinh(t)*pos + cosh(t)*dir };
+}
+
+float Math::cosh(float x)
+{
+	//float eX = exp(x);
+	//return (0.5 * (eX + 1.0 / eX));
+	return glm::cosh(x);
+}
+
+float Math::acosh(float x)
+{
+	//return log(x + sqrt(x*x-1.0));
+	return glm::acosh(x);
+}
+
+float Math::sinh(float x)
+{
+	//float eX = exp(x);
+	//return (0.5 * (eX - 1.0 / eX));
+	return glm::sinh(x);
+}
+
+float Math::hypDot(const glm::vec4& u, const glm::vec4& v)
+{
+	return (u.x * v.x) + (u.y * v.y) + (u.z * v.z) - (u.w * v.w); // Lorentz Dot
+}
+
+float Math::hypNorm(const glm::vec4& v)
+{
+	return std::sqrt(std::abs(hypDot(v, v)));
+}
+
+glm::vec4 Math::hypNormalize(const glm::vec4& u)
+{
+	return u / hypNorm(u);
+}
+
+float Math::hypDistance(const glm::vec4& u, const glm::vec4& v)
+{
+	const float bUV = -hypDot(u, v);
+	return acosh(bUV);
+}
+
+glm::vec4 Math::hypDirection(const glm::vec4& u, const glm::vec4& v)
+{
+	const glm::vec4 w = v + hypDot(u, v) * u;
+	return hypNormalize(w);
+}
+
+glm::vec4 Math::constructHyperboloidPoint(const glm::vec3& direction, float distance)
+{
+	const float w{ cosh(distance) };
+	const float magSquared = w * w - 1;
+	const glm::vec3 d{ std::sqrtf(magSquared) * glm::normalize(direction) };
+	return glm::vec4{ d, w };
+}
+
+bool Math::isInH3(const glm::vec4& v)
+{
+	static constexpr float EPS{ 0.001 };
+
+	const bool positiveW{ v.w > 0 };
+	const bool constCurvature{ withinError(hypDot(v,v), -1, EPS) };
+	
+	return positiveW && constCurvature;
+}
+
+void Math::printH3(const std::string& s, const glm::vec4& v)
+{
+	auto toStr = [](const glm::vec4& v)
+	{
+		// takes float and returns string to 3 decimals
+		auto helper = [](float f)
+		{
+			std::string s = std::to_string(f);
+			return s.substr(0, s.find(".") + 4);
+		};
+
+		return std::string{
+			"(" + helper(v.x) + ", "
+			+ helper(v.y) + ", "
+			+ helper(v.z) + ", "
+			+ helper(v.w) + ")"
+		};
+	};
+
+	std::cout << s <<" = " << toStr(v)
+		<< "\nnormalize(" << s << ") = " << toStr(hypNormalize(v))
+		<< "\n<" << s << "," << s << "> = " << hypDot(v, v)
+		<< "\nnorm(" << s << ") = " << hypNorm(v)
+		<< "\nisInH3(" << s << ") = " << (isInH3(v) ? "true" : "false")
+		<< "\n\n";
+}
+
+bool Math::hyperbolicUnitTests()
+{
+	// random direction vector scaled to random length
+	auto randH3Point = [](int s) -> glm::vec4 
+	{
+		const glm::vec3 randDir{ rng(s), rng(s + 1), rng(s + 2) };
+		const float randScalar{ ((rng(s+3) - 0.5f)) * 10 };	// scaling blows up quick, keep it below ~10
+		
+		return constructHyperboloidPoint(randDir, randScalar);
+	};
+
+	// verify that constructHyperboloidPoint maps E3 to H3
+	for (int i = 0; i < 1000; ++i)
+	{
+		const glm::vec4 p{ randH3Point(i) };
+
+		const bool inH3{ isInH3(p) };
+
+		if (!inH3)
+		{
+			std::cout << "failed constructHyperboloidPoint\n";
+			printH3("v", p);
+			return false;
+		}
+	}
+
+	// verify that hypNormalize maps points in H3 to points in H3
+	for (int i = 0; i < 1000; ++i)
+	{
+		const glm::vec4 v{ randH3Point(i) };
+		const glm::vec4 vHypNormalized{ hypNormalize(v) };
+
+		const bool inH3{ isInH3(vHypNormalized) };
+		const bool normalized{ withinError(hypNorm(vHypNormalized), 1, 0.001) };
+		
+		if (!(inH3 && normalized))
+		{
+			std::cout << "failed hypNormalize\n";
+			printH3("n", vHypNormalized);
+			return false;
+		}
+	}
+
+	// verify that hypDirection maps H3 to H3
+	for (int i = 0; i < 1000; ++i)
+	{
+		const glm::vec4 v{ randH3Point(i) };
+		const glm::vec4 u{ randH3Point(i+3) };
+		const glm::vec4 dirUV{ hypDirection(u,v) };
+		const glm::vec4 dirVU{ hypDirection(v,u) };
+		
+
+		const bool dirUVInH3{ isInH3(dirUV) };
+		const bool dirVUInH3{ isInH3(dirVU) };
+		
+		if (!(dirUVInH3 && dirVUInH3))
+		{
+			std::cout << "failed hypDirection\n";
+
+			printH3("u", v);
+			printH3("v", u);
+			printH3("uv", dirUV);
+			printH3("vu", dirVU);
+
+			return false;
+		}
+	}
+
+	// verify that taking a point in the hyperboloid model of H3
+	// and following flow of its geodesic gives a point still in H3
+	for (int i = 0; i < 1000; ++i)
+	{
+		const glm::vec4 pos{ randH3Point(i) };
+		const glm::vec4 dir{ hypNormalize(randH3Point(i + 1)) };
+		const bool dirNormalized{ withinError(hypNorm(dir), 1, 0.01) };
+		const float t{ rng(i + 2) * 10 };	// [0,10]
+	
+		{
+			const glm::vec4 ORIGIN{ 0,0,0,1 };
+			const glm::vec4 shouldBeDir{ hypGeoFlowPos(ORIGIN, dir, 1) };
+
+			const bool sane{ dir == shouldBeDir };
+
+			if (!sane)
+			{
+				std::cout << "failed geodesic flow\n";
+
+				// NORM != DISTANCE
+				// length is not distance from origin
+				printH3("~origin",shouldBeDir);
+				const float distFromOrigin = hypDistance(dir, ORIGIN);
+				const float distFromProbablyOrigin = hypDistance(shouldBeDir, ORIGIN);
+				std::cout << "distFromOrigin = " << distFromOrigin
+					<< "\ndistFromProbablyOrigin = " << distFromProbablyOrigin;
+				
+				//return false;
+			}
+		}
+
+		{
+			const glm::vec4 nextPos{ hypGeoFlowPos(pos, dir, t) };
+			const glm::vec4 nextDir{ hypGeoFlowDir(pos, dir, t) };
+
+			const bool nextPosInH3{ isInH3(nextPos) };
+			const bool nextDirInH3{ isInH3(nextDir) };
+			const bool nextDirNormalized{ withinError(hypNorm(nextDir), 1, 0.01) };
+			
+			if (!(nextPosInH3 && nextDirInH3 && nextDirNormalized))
+			{
+				std::cout << "failed geodesic flow\n";
+				printH3("pos", nextPos);
+				printH3("dir", nextDir);
+				return false;
+			}
+		}
+	}
+
+	
+	// verify that generateHyperbolicExponentialMap (should really rename)
+	// translates points from H3 to H3
+	// that it actually takes a vector from E3 and gives 
+	// matrix/linear transform which maps H3 to H3
+	{
+		// todo
+	}
+
+	return true;
+}
+
+bool Math::withinError(double approx, double expected, double tolerance)
+{
+	return std::abs(approx - expected) < tolerance;
+}
+
+double Math::getAbsoluteError(double approx, double expected)
+{
+	return std::abs(approx - expected);
+}
+
+double Math::getRelativeError(double approx, double expected)
+{
+	return std::abs((approx - expected) / expected);
 }

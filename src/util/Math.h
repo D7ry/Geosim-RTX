@@ -144,8 +144,17 @@ public:
 		float roughness
 	);
 
-	static double euclideanSphereSDF(const glm::vec4& p, float r);
-	static double hyperbolicSphereSDF(const glm::vec4& p, float r);
+	static double euclideanSphereSDF(
+		const glm::vec4& p, 
+		float r,
+		const glm::vec4& center = { 0,0,0,0 }
+	);
+
+	static double hyperbolicSphereSDF(
+		const glm::vec4& p, 
+		float r, 
+		const glm::vec4& center = { 0,0,0,0 }
+	);
 
 	static glm::mat4 generateHyperbolicExponentialMap(const glm::vec3& displacement);
 
@@ -161,4 +170,48 @@ public:
 		float t
 	);
 
+	// Get point at distance t on the geodesic from pos in the direction dir
+	static glm::vec4 hypGeoFlowPos(
+		const glm::vec4& pos,
+		const glm::vec4& dir,
+		float t
+	);
+
+	// Get velocity/direction of point at distance t on 
+	// the geodesic from pos in the direction dir
+	static glm::vec4 hypGeoFlowDir(
+		const glm::vec4& pos,
+		const glm::vec4& dir,
+		float t
+	);
+
+	// hyperbolic funcs
+	static float cosh(float x);
+	static float acosh(float x);
+	static float sinh(float x);
+
+	static float hypDot(const glm::vec4& u, const glm::vec4& v);
+	static float hypNorm(const glm::vec4& v);
+
+	static glm::vec4 hypNormalize(const glm::vec4& u);
+
+	static float hypDistance(const glm::vec4& u, const glm::vec4& v);
+
+	static glm::vec4 hypDirection(const glm::vec4& u, const glm::vec4& v);
+
+	// Constructs a point on the hyperboloid from a direction and a hyperbolic distance.
+	static glm::vec4 constructHyperboloidPoint(
+		const glm::vec3& direction,
+		float distance
+	);
+
+	static bool isInH3(const glm::vec4& v);
+	static void printH3(const std::string& s, const glm::vec4& v);
+	static bool hyperbolicUnitTests();
+
+	static bool withinError(double approx, double expected, double tolerance);
+	static double getAbsoluteError(double approx, double expected);
+	static double getRelativeError(double approx, double expected);
+
+	
 };
