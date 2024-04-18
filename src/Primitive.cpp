@@ -6,6 +6,9 @@
 
 #include <cmath>
 
+#include <string>
+#include <iostream>
+
 Intersection::Intersection(const Material& m, const RayIntersection& i)
     :
     material{ m },
@@ -67,24 +70,65 @@ PotentialIntersection Sphere::checkRayIntersection(
 
 double Sphere::SDF(const glm::vec4& p, const glm::vec4& positionWorldSpace) const
 {
-    const glm::vec3 displacement{ glm::vec3(positionWorldSpace) + this->position };
-    
+    const glm::vec3 euclideanPosition{ 
+        glm::vec3(positionWorldSpace) + this->position 
+    };
+
+    const glm::vec4 hyperbolicPosition{ Math::constructHyperboloidPoint(
+        euclideanPosition,
+        glm::length(euclideanPosition)
+        ) };
+    auto toStr = [](const glm::vec4& v)
+    {
+        // takes float and returns string to 3 decimals
+        auto helper = [](float f)
+        {
+            std::string s = std::to_string(f);
+            return s.substr(0, s.find(".") + 4);
+        };
+
+        return std::string{
+            "(" + helper(v.x) + ", "
+            + helper(v.y) + ", "
+            + helper(v.z) + ", "
+            + helper(v.w) + ")"
+        };
+    };
+
     // todo: figure out how this works and when to use
-    //const glm::mat4 translation{ Math::generateHyperbolicExponentialMap(displacement) };
-    //const glm::vec4 d{ translation * glm::vec4(displacement, 0) };
+    //const glm::mat4 translation{ Math::generateHyperbolicExponentialMap(
+    //    hyperbolicPosition
+    //) };
+    //const glm::vec4 d{ translation * hyperbolicPosition };
 
 
     ////// NOTICE: hyperbolic sphere SDF does not work, almost always returns NAN
-    //if (EUCLIDEAN)
+    if (EUCLIDEAN)
         return Math::euclideanSphereSDF(
-            p - glm::vec4(displacement, 0), // todo: is w supposed to be 0?
-            this->radius
+            p, // todo: is w supposed to be 0?
+            this->radius,
+            glm::vec4{euclideanPosition, 0}
         );
-    //else
-    //   return Math::hyperbolicSphereSDF(
-    //       p - glm::vec4(displacement, 1), // todo: is w supposed to be 0?
-    //       this->radius
-    //   );
+    else
+    {
+        const float dist = Math::hyperbolicSphereSDF(
+            p, // todo: is w supposed to be 0?
+            this->radius,
+            hyperbolicPosition
+        );
+
+        if (isDebugRay && PRINT_DEBUG_MARCHING)
+        {
+            if (!Math::isInH3(p) )//|| !Math::isInH3(d))
+                std::cout << "prim\n";
+
+            //std::cout << "displacement: " << toStr(displacement) << '\n';
+            std::cout << "p: " << toStr(p) << '\n';
+            std::cout << "distance ; " << dist << '\n';
+        }
+
+        return dist;
+    }
 }
 
 // triangle

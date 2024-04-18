@@ -47,6 +47,12 @@ static constexpr unsigned WINDOW_HEIGHT{ INTERACTIVE_MODE ? INTERACTIVE_HEIGHT :
 
 int main()
 {
+    if (!Math::hyperbolicUnitTests())
+    {
+        std::cout << "unit tests failed";
+        return 0;
+    }
+
     sf::Clock timer;
     timer.restart();
 
@@ -109,7 +115,7 @@ int main()
 
     /// create scene
     // snowman
-    if (true)
+    if (EUCLIDEAN)
     {
         Geometry snowmanObject;    // scene will have one object
 
@@ -127,9 +133,13 @@ int main()
         bottom.radius = .9;
 
         // assign materials
-        head.material =   lightMat;
+        head.material = lightMat;
         middle.material = lightMat;
         bottom.material = lightMat;
+
+        head.material = lightMat;
+        middle.material = greenMat;
+        bottom.material = redMat;
 
         // add primitives to object
         snowmanObject.add(head);
@@ -150,7 +160,7 @@ int main()
     }
 
     // floor
-    if (true)
+    if (EUCLIDEAN)
     {
         Geometry floorObject;
         Sphere floor;
@@ -165,7 +175,7 @@ int main()
     }
 
     // sun
-    if (EUCLIDEAN)
+    if (false)
     {
         Geometry lightObject;
         Sphere light;
@@ -180,7 +190,7 @@ int main()
     }
 
     // 3 balls
-    if (true)
+    if (false)
     {
         Geometry object;
 
@@ -188,10 +198,10 @@ int main()
         mirror.position = { 0,0,0 };
 
         Sphere tomato;
-        tomato.position = { 2,0,0 };
+        tomato.position = { 20,0,0 };
 
         Sphere watermelon;
-        watermelon.position = { -2,0,0 };
+        watermelon.position = { -20,0,0 };
 
         mirror.material = glassMat;
         tomato.material = redMat;
@@ -202,8 +212,26 @@ int main()
         object.add(watermelon);
 
         object.position = { 0, 0, -2 };
+        object.position = { 0, 0, 0 };
         scene.add(object);
     }
+
+    // blue unit sphere
+    if (true)
+    {
+        Geometry object;
+
+        Sphere s;
+        s.position = { 0,0,0 };
+
+        s.material = floorMat;
+
+        object.add(s);
+
+        object.position = { 0, 0, -2 };
+        scene.add(object);
+    }
+
 
     // plane
     if (EUCLIDEAN)
@@ -251,6 +279,34 @@ int main()
         scene.add(evilObject);
     }
 
+
+    // geodesic visualization
+    {
+        std::vector<glm::vec4> positions = {
+            glm::vec4(0.896, 0.197, 0.111, 1.000),
+            glm::vec4(0.222, 0.108, -0.301, 1.807),
+            glm::vec4(0.097, 0.180, -0.872, 4.305),
+            glm::vec4(0.158, 0.373, -1.864, 9.115),
+            glm::vec4(0.336, 0.799, -3.991, 19.507),
+        };
+
+        std::vector<glm::vec4> directions = {
+            glm::vec4(-0.928, -0.165, -0.333, 0.000),
+            glm::vec4(-0.204, -0.000, -0.271, 0.940),
+            glm::vec4(-0.010, 0.035, -0.209, 0.977),
+            glm::vec4(0.015, 0.039, -0.200, 0.978),
+            glm::vec4(0.016, 0.040, -0.200, 0.978),
+        };
+
+        Geometry o;
+
+        for (const auto p : positions)
+            ;
+
+            for (const auto d : directions)
+                ;
+    }
+
     Renderer renderer;
     Camera camera;
 
@@ -260,9 +316,10 @@ int main()
     camera.position = { 0,0,0 };
     camera.pitch = 0;
 
-    camera.position = { 0.0242337, -0.57934, -0.0275188 };
-    camera.pitch = 0.896479;
-    camera.yaw = 4.71238;
+
+    //camera.position = { 0.887185, 0.596745, -0.756814 };
+    //camera.pitch = -0.279047;
+    //camera.yaw = 3.54052;
 
     sf::Vector2i mPosPrev{ sf::Mouse::getPosition() };
     sf::Vector2i mPosCur{ sf::Mouse::getPosition() };

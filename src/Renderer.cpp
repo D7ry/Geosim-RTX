@@ -90,9 +90,10 @@ void Renderer::render(const Scene& scene, const Camera& camera, Image& image)
 
 				// ray coords in world space
 				glm::vec4 start{ camera.position, 1.f };
-				glm::vec4 dir{ coord.x, coord.y, -1.f, 1.f };
+				glm::vec4 dir{ coord.x, coord.y, -1.f, 0 };
 
 				// transform ray to view space
+				dir = glm::normalize(dir);
 				dir = dir * camera.viewMat;
 
 				Ray ray{
@@ -151,8 +152,12 @@ glm::vec3 Renderer::traceRay(Ray ray, const Scene& scene)
 
 	for (int i = 0; i <= MAX_NUM_BOUNCES; ++i)
 	{
-		auto potentialIntersection = getClosestIntersectionMarch(ray, scene);
-	
+		auto potentialIntersection{
+			RAY_MARCH ?
+				getClosestIntersectionMarch(ray, scene)
+			:	// else
+				getClosestIntersection(ray, scene)
+		};	
 		const bool rayHit{ potentialIntersection.has_value() };
 
 		if (rayHit)
@@ -161,7 +166,7 @@ glm::vec3 Renderer::traceRay(Ray ray, const Scene& scene)
 
 			const Intersection& hit{ potentialIntersection.value() };
 
-			if (DISPLAY_NORMALS)
+			if (RENDER_NORMALS || RENDER_WITH_POTATO_SETTINGS)
 				return (hit.normal/2.f) + .5f;
 
 			// record intersection
@@ -251,15 +256,26 @@ PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, cons
 {
 	std::unique_ptr<Intersection> closestHit;
 
+	//if (isDebugRay)
+	//	std::cout << "here!\n";
+
 	float totalDistanceTraveled = 0.0;
-	const int MAX_NUM_STEPS = 64;
+	const int MAX_NUM_STEPS = 32;
 	const float MIN_HIT_DISTANCE = .1;
-	const float MAX_TRACE_DISTANCE = 100000.0;
+	const float MAX_TRACE_DISTANCE = 10e35;	// max float value on order of 10e38
 
-	glm::vec4 marchPos{ ray.origin, 1 };
-	glm::vec4 marchDir{ ray.dir, 0 };
+	// translate camera position from euclidean to hyperbolic (translated to hyperboloid)
+	glm::vec4 hypPos{ Math::constructHyperboloidPoint(
+		ray.origin,
+		glm::length(ray.origin)
+	)};
 
-	auto toStr = [](const glm::vec3& v)
+	glm::vec4 hypDir{ Math::constructHyperboloidPoint(
+		ray.dir,
+		1
+	) };
+
+	auto toStr = [](const glm::vec4& v)
 	{
 		// takes float and returns string to 3 decimals
 		auto helper = [](float f)
@@ -268,14 +284,42 @@ PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, cons
 			return s.substr(0, s.find(".") + 4);
 		};
 
-		return std::string{ "(" + helper(v.x) + ", " + helper(v.y) + ", " + helper(v.z) + ")" };
+		return std::string{ 
+			"(" + helper(v.x) + ", " 
+			+ helper(v.y) + ", " 
+			+ helper(v.z) + ", " 
+			+ helper(v.w) + ")" 
+		};
 	};
+	
+	// generate direction then transform to hyperboloid
+	glm::vec4 marchPos{ hypPos };
+	glm::vec4 marchDir{ hypDir };
+	// glm::vec4 marchDir{ Math::hypDirection(eucRayPos, eucRayDir) };	//creates a point that our ray will go through
+
 
 	if (isDebugRay && PRINT_DEBUG_MARCHING && !EUCLIDEAN)
 		std::cout << "Starting March!\n";
 
+	if (isDebugRay && LOG_MARCH_PATH)
+	{
+		rayMarchPathPositions.clear();
+		rayMarchPathDirections.clear();
+	}
+
 	for (int i = 0; i < MAX_NUM_STEPS; ++i)
 	{
+		if (isDebugRay)
+		{
+			if (!Math::isInH3(marchPos) || !Math::isInH3(marchDir))
+			{
+				std::cout << "bad step\npos: " << toStr(marchPos)
+					<< ", dot: " << Math::hypDot(marchPos, marchPos) 
+					<< "\ndir: " << toStr(marchDir)
+					<< ", dot: " << Math::hypDot(marchDir, marchDir) << '\n';
+			}
+		}
+
 		const auto closest = getClosestPrimitive(marchPos, scene);
 
 		double dist = closest.first;
@@ -284,39 +328,71 @@ PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, cons
 		if (dist < MIN_HIT_DISTANCE)
 		{
 			const Primitive& primitive = closest.second;
-			//const glm::vec3 normal = computeNormal(marchPos, scene);
-			const glm::vec3 normal = primitive.material.get()->albedo; // for rough quick rendering/debugging
+			glm::vec3 normal = primitive.material.get()->albedo; // for rough quick rendering/debugging
+
+			if (!RENDER_WITH_POTATO_SETTINGS)
+				normal = computeNormal(marchPos, scene);
+			
 			RayIntersection rayIntersection{ ray, -1, marchPos, normal };
 			Intersection i{ *primitive.material.get(), rayIntersection };
 
 			closestHit = std::make_unique<Intersection>(i);
 		}
-		else if (totalDistanceTraveled > MAX_TRACE_DISTANCE || dist > MAX_TRACE_DISTANCE)
+		else if (totalDistanceTraveled + dist > MAX_TRACE_DISTANCE)
 		{
+			if (isDebugRay && PRINT_DEBUG_MARCHING)
+				std::cout << "toofar, termininat, dist = " << dist << '\n';
 			break;
 		}
 		else
 		{
-			const float ss{ (float)dist / 1 };
+			const float ss{ (float)dist / 1 };	// substep size
 			while (dist > 0)
 			{
 				auto newMarch = march(marchPos, marchDir, ss);
-				marchPos = newMarch.first;
-				marchDir = newMarch.second;
-				totalDistanceTraveled += ss;
-				dist -= ss;
+
+				if (isDebugRay && LOG_MARCH_PATH)
+				{
+					if (rayMarchPathDirections.empty())
+						rayMarchPathDirections.emplace_back(marchDir);
+					if (rayMarchPathPositions.empty())
+						rayMarchPathPositions.emplace_back(marchPos);
+
+					rayMarchPathPositions.emplace_back(newMarch.first);
+					rayMarchPathDirections.emplace_back(newMarch.second);
+				}
 
 				if (isDebugRay && PRINT_DEBUG_MARCHING && !EUCLIDEAN)
-					std::cout << "Step size: " << dist 
-					<< ", sub step size: " << ss
-					<< ", pos: " << toStr(marchPos) 
-					<< ", dir: " << toStr(marchDir) << '\n';
+				{
+					std::cout << "Step size: " << dist
+						<< ", sub step size: " << ss
+						<< "\npos: " << toStr(marchPos) << " => " << toStr(newMarch.first)
+						<< "\ndir: " << toStr(marchDir) << " => " << toStr(newMarch.second)
+						<< '\n';
+				}
+				
+				marchPos = newMarch.first;
+				marchDir = Math::hypNormalize(newMarch.second);
+				totalDistanceTraveled += ss;
+				dist -= ss;
 			}
 		}
 	}
 
 	if (isDebugRay && PRINT_DEBUG_MARCHING && !EUCLIDEAN)
-		std::cout << totalDistanceTraveled << '\n';
+		std::cout << "total distance traveled: " << totalDistanceTraveled << '\n';
+
+	if (isDebugRay && LOG_MARCH_PATH)
+	{
+		std::cout << "\nMarch Path:\nPositions:\n{\n";
+		for (const auto p : rayMarchPathPositions)
+			std::cout << toStr(p) << ",\n";
+
+		std::cout << "}\n\nDirections:\n{\n";
+		for (const auto d : rayMarchPathDirections)
+			std::cout << toStr(d) << ",\n";
+		std::cout << "}\n";
+	}
 
 	if (closestHit)
 		return *closestHit.get();
@@ -324,24 +400,28 @@ PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, cons
 	return std::nullopt;
 }
 
-std::pair<double, const Primitive&> Renderer::getClosestPrimitive(const glm::vec3& p, const Scene& scene)
+std::pair<double, const Primitive&> Renderer::getClosestPrimitive(const glm::vec4& p, const Scene& scene)
 {
 	double minDistance{ 100000000 };
 	const Primitive* minDistancePrimitive{ nullptr };
 	for (const Geometry& object : scene.geometry)
+	{
+		const glm::vec4 objHypPos{ Math::constructHyperboloidPoint(
+			object.position,
+			glm::length(object.position)
+		) };
+
 		for (const auto& primitivePtr : object.primitives)
 		{
 			const Primitive& primitive = *primitivePtr.get();
-
-			// todo: is w supposed to be 0?
-			const double d = primitive.SDF(glm::vec4{ p,0 }, glm::vec4{ object.position, 0 });
-			
+			const double d = primitive.SDF(p, objHypPos);
 			if (d < minDistance)
 			{
 				minDistance = std::min(minDistance, d);
 				minDistancePrimitive = &primitive;
 			}
 		}
+	}
 
 	//if (minDistancePrimitive == nullptr)
 	//	std::cout << "brb, bouta crash\n";
@@ -349,17 +429,24 @@ std::pair<double, const Primitive&> Renderer::getClosestPrimitive(const glm::vec
 	return { minDistance, *minDistancePrimitive };
 }
 
-double Renderer::getClosestDistance(const glm::vec3& p, const Scene& scene)
+double Renderer::getClosestDistance(const glm::vec4& p, const Scene& scene)
 {
 	double minDistance{ 1000000 };
 	for (const Geometry& object : scene.geometry)
+	{
+		const glm::vec4 objHypPos{ Math::constructHyperboloidPoint(
+			object.position, 
+			glm::length(object.position)
+		)};
+
 		for (const auto& primitivePtr : object.primitives)
 		{
 			const Primitive& primitive = *primitivePtr.get();
-			const double d = primitive.SDF(glm::vec4{ p,1 }, glm::vec4{ object.position, 1 });
+			const double d = primitive.SDF(p, objHypPos);
 
 			minDistance = std::min(minDistance, d);
 		}
+	}
 
 	return minDistance;
 }
@@ -369,20 +456,39 @@ double Renderer::getClosestDistance(const glm::vec3& p, const Scene& scene)
 // Higher-Order Finite Differences
 // Precomputed Normals
 // Parallelization (duh)
-glm::vec3 Renderer::computeNormal(const glm::vec3 p, const Scene& scene)
+glm::vec3 Renderer::computeNormal(const glm::vec4& p, const Scene& scene)
 {
-	static constexpr float DELTA{ 0.001 };
-	static constexpr glm::vec3 DX{ DELTA, 0, 0 };
-	static constexpr glm::vec3 DY{ 0, DELTA, 0 };
-	static constexpr glm::vec3 DZ{ 0, 0, DELTA };
+	
 
+	static constexpr float DELTA{ 0.001 };
+	static constexpr glm::vec4 DX{ DELTA, 0, 0, 0 };
+	static constexpr glm::vec4 DY{ 0, DELTA, 0, 0 };
+	static constexpr glm::vec4 DZ{ 0, 0, DELTA, 0 };
+	
 	float xGradient = getClosestDistance(p + DX, scene) - getClosestDistance(p - DX, scene);
 	float yGradient = getClosestDistance(p + DY, scene) - getClosestDistance(p - DY, scene);
 	float zGradient = getClosestDistance(p + DZ, scene) - getClosestDistance(p - DZ, scene);
-
+	
 	const glm::vec3 normal{ xGradient, yGradient, zGradient };
-
+	
 	return glm::normalize(normal);
+
+
+	//static constexpr float EPS{ 0.001 };
+	//glm::vec4 basis_x = Math::hypNormalize(glm::vec4(p.w, 0.0, 0.0, p.x));  // dw/dx = x/w on hyperboloid
+	//glm::vec4 basis_y = glm::vec4(0.0, p.w, 0.0, p.y);  // dw/dy = y/denom
+	//glm::vec4 basis_z = glm::vec4(0.0, 0.0, p.w, p.z);  // dw/dz = z/denom  /// note that these are not orthonormal!
+	//basis_y = hypNormalize(basis_y - hypDot(basis_y, basis_x) * basis_x); // need to Gram Schmidt
+	//basis_z = hypNormalize(basis_z - hypDot(basis_z, basis_x) * basis_x - hypDot(basis_z, basis_y) * basis_y);
+	//
+	//
+	//float xGradient = getClosestDistance(p + DX, scene) - getClosestDistance(p - DX, scene);
+	//float yGradient = getClosestDistance(p + DY, scene) - getClosestDistance(p - DY, scene);
+	//float zGradient = getClosestDistance(p + DZ, scene) - getClosestDistance(p - DZ, scene);
+	//
+	//const glm::vec3 normal{ xGradient, yGradient, zGradient };
+	//
+	//return glm::normalize(normal);
 }
 
 glm::vec3 Renderer::environmentalLight(const glm::vec3& dir)
