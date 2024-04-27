@@ -70,14 +70,6 @@ PotentialIntersection Sphere::checkRayIntersection(
 
 double Sphere::SDF(const glm::vec4& p, const glm::vec4& positionWorldSpace) const
 {
-    const glm::vec3 euclideanPosition{ 
-        glm::vec3(positionWorldSpace) + this->position 
-    };
-
-    const glm::vec4 hyperbolicPosition{ Math::constructHyperboloidPoint(
-        euclideanPosition,
-        glm::length(euclideanPosition)
-        ) };
     auto toStr = [](const glm::vec4& v)
     {
         // takes float and returns string to 3 decimals
@@ -94,6 +86,14 @@ double Sphere::SDF(const glm::vec4& p, const glm::vec4& positionWorldSpace) cons
             + helper(v.w) + ")"
         };
     };
+    const glm::vec3 euclideanPosition{ 
+        glm::vec3(positionWorldSpace) + this->position 
+    };
+
+    const glm::vec4 hyperbolicPosition{ Math::constructHyperboloidPoint(
+        euclideanPosition,
+        glm::length(euclideanPosition)
+        ) };
 
     // todo: figure out how this works and when to use
     //const glm::mat4 translation{ Math::generateHyperbolicExponentialMap(
@@ -119,7 +119,7 @@ double Sphere::SDF(const glm::vec4& p, const glm::vec4& positionWorldSpace) cons
 
         if (isDebugRay && PRINT_DEBUG_MARCHING)
         {
-            if (!Math::isInH3(p) )//|| !Math::isInH3(d))
+            if (!Math::isH3Point(p) )//|| !Math::isInH3(d))
                 std::cout << "prim\n";
 
             //std::cout << "displacement: " << toStr(displacement) << '\n';

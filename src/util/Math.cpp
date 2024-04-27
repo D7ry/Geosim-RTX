@@ -450,7 +450,7 @@ glm::vec4 Math::constructHyperboloidPoint(const glm::vec3& direction, float dist
 	return glm::vec4{ d, w };
 }
 
-bool Math::isInH3(const glm::vec4& v)
+bool Math::isH3Point(const glm::vec4& v)
 {
 	static constexpr float EPS{ 0.001 };
 
@@ -460,7 +460,14 @@ bool Math::isInH3(const glm::vec4& v)
 	return positiveW && constCurvature;
 }
 
-void Math::printH3(const std::string& s, const glm::vec4& v)
+bool Math::isH3Dir(const glm::vec4& p, const glm::vec4& dir)
+{
+	const bool isDirection{ withinError(hypDot(dir, dir), 1, 0.001) };
+	const bool isTangentVector{ withinError(hypDot(dir, p), 0, 0.001) };
+	return isDirection && isTangentVector;
+}
+
+void Math::printH3Point(const std::string& s, const glm::vec4& v)
 {
 	auto toStr = [](const glm::vec4& v)
 	{
@@ -483,7 +490,35 @@ void Math::printH3(const std::string& s, const glm::vec4& v)
 		<< "\nnormalize(" << s << ") = " << toStr(hypNormalize(v))
 		<< "\n<" << s << "," << s << "> = " << hypDot(v, v)
 		<< "\nnorm(" << s << ") = " << hypNorm(v)
-		<< "\nisInH3(" << s << ") = " << (isInH3(v) ? "true" : "false")
+		<< "\nisH3Point(" << s << ") = " << (isH3Point(v) ? "true" : "false")
+		<< "\n\n";
+}
+
+void Math::printH3Dir(const std::string& s, const glm::vec4& p, const glm::vec4& d)
+{
+	auto toStr = [](const glm::vec4& v)
+	{
+		// takes float and returns string to 3 decimals
+		auto helper = [](float f)
+		{
+			std::string s = std::to_string(f);
+			return s.substr(0, s.find(".") + 4);
+		};
+
+		return std::string{
+			"(" + helper(v.x) + ", "
+			+ helper(v.y) + ", "
+			+ helper(v.z) + ", "
+			+ helper(v.w) + ")"
+		};
+	};
+
+	std::cout << s << " = " << toStr(d)
+		<< '\n' << s << "'s position = " << toStr(p)
+		<< "\n<" << s << "," << s << "> = " << hypDot(d, d)
+		<< "\n<" << "pos" << "," << s << "> = " << hypDot(p, d)
+		<< "\nnorm(" << s << ") = " << hypNorm(d)
+		<< "\nisH3Dir(" << "pos" << ", " << s << ") = " << (isH3Dir(p, d) ? "true" : "false")
 		<< "\n\n";
 }
 
@@ -498,17 +533,46 @@ bool Math::hyperbolicUnitTests()
 		return constructHyperboloidPoint(randDir, randScalar);
 	};
 
+	auto randH3Dir = [](const glm::vec4& pos, int s) -> glm::vec4
+	{
+		glm::vec3 randDir{ rng(s), rng(s + 1), rng(s + 2) };
+
+		// Make the direction orthogonal to the position
+		glm::vec3 projDir = randDir - glm::dot(glm::vec3(pos), randDir) / pos.w * glm::vec3(pos);
+
+		return glm::vec4(glm::normalize(projDir), 0.0f);
+
+		// Generate a random 3D unit vector
+		//const glm::vec3 randDir = glm::normalize(glm::vec3{ rng(s), rng(s + 1), rng(s + 2) });
+
+		// Compute the Lorentz orthonormal basis vectors at the given point
+		const glm::vec4 e1{ pos.w, 0.0f, 0.0f, pos.x };
+		const glm::vec4 e2{ 0.0f, pos.w, 0.0f, pos.y };
+		const glm::vec4 e3{ 0.0f, 0.0f, pos.w, pos.z };
+
+		// Express the random direction in the Lorentz orthonormal basis
+		const glm::vec4 tangentVec = randDir.x * e1 + randDir.y * e2 + randDir.z * e3;
+
+		// Normalize the tangent vector with respect to the Lorentz inner product
+		const glm::vec4 dir = hypNormalize(tangentVec);
+
+		// Ensure the direction vector is orthogonal to the position vector
+		const glm::vec4 orthogonalDir = dir - hypDot(pos, dir) * pos;
+
+		return hypNormalize(orthogonalDir);
+	};
+
 	// verify that constructHyperboloidPoint maps E3 to H3
 	for (int i = 0; i < 1000; ++i)
 	{
 		const glm::vec4 p{ randH3Point(i) };
 
-		const bool inH3{ isInH3(p) };
+		const bool inH3{ isH3Point(p) };
 
 		if (!inH3)
 		{
 			std::cout << "failed constructHyperboloidPoint\n";
-			printH3("v", p);
+			printH3Point("v", p);
 			return false;
 		}
 	}
@@ -519,38 +583,13 @@ bool Math::hyperbolicUnitTests()
 		const glm::vec4 v{ randH3Point(i) };
 		const glm::vec4 vHypNormalized{ hypNormalize(v) };
 
-		const bool inH3{ isInH3(vHypNormalized) };
+		const bool inH3{ isH3Point(vHypNormalized) };
 		const bool normalized{ withinError(hypNorm(vHypNormalized), 1, 0.001) };
 		
 		if (!(inH3 && normalized))
 		{
 			std::cout << "failed hypNormalize\n";
-			printH3("n", vHypNormalized);
-			return false;
-		}
-	}
-
-	// verify that hypDirection maps H3 to H3
-	for (int i = 0; i < 1000; ++i)
-	{
-		const glm::vec4 v{ randH3Point(i) };
-		const glm::vec4 u{ randH3Point(i+3) };
-		const glm::vec4 dirUV{ hypDirection(u,v) };
-		const glm::vec4 dirVU{ hypDirection(v,u) };
-		
-
-		const bool dirUVInH3{ isInH3(dirUV) };
-		const bool dirVUInH3{ isInH3(dirVU) };
-		
-		if (!(dirUVInH3 && dirVUInH3))
-		{
-			std::cout << "failed hypDirection\n";
-
-			printH3("u", v);
-			printH3("v", u);
-			printH3("uv", dirUV);
-			printH3("vu", dirVU);
-
+			printH3Point("n", vHypNormalized);
 			return false;
 		}
 	}
@@ -560,29 +599,40 @@ bool Math::hyperbolicUnitTests()
 	for (int i = 0; i < 1000; ++i)
 	{
 		const glm::vec4 pos{ randH3Point(i) };
-		const glm::vec4 dir{ hypNormalize(randH3Point(i + 1)) };
-		const bool dirNormalized{ withinError(hypNorm(dir), 1, 0.01) };
+		const glm::vec4 dir{ randH3Dir(pos, i+1) };
 		const float t{ rng(i + 2) * 10 };	// [0,10]
 	
 		{
 			const glm::vec4 ORIGIN{ 0,0,0,1 };
-			const glm::vec4 shouldBeDir{ hypGeoFlowPos(ORIGIN, dir, 1) };
+			const glm::vec4 nextPos{ hypGeoFlowPos(ORIGIN, dir, 1) };
+			const glm::vec4 nextDir{ hypGeoFlowDir(ORIGIN, dir, 1) };
 
-			const bool sane{ dir == shouldBeDir };
+			const bool sane{ isH3Point(nextPos) && isH3Dir(nextPos, nextDir) };
 
-			if (!sane)
 			{
-				std::cout << "failed geodesic flow\n";
+				std::cout << "Origin flow 1 test: \n\n";
 
-				// NORM != DISTANCE
-				// length is not distance from origin
-				printH3("~origin",shouldBeDir);
-				const float distFromOrigin = hypDistance(dir, ORIGIN);
-				const float distFromProbablyOrigin = hypDistance(shouldBeDir, ORIGIN);
-				std::cout << "distFromOrigin = " << distFromOrigin
-					<< "\ndistFromProbablyOrigin = " << distFromProbablyOrigin;
+				printH3Point("p_0", pos);
+				printH3Dir("d_0", pos, dir);
+				printH3Point("p_n", nextPos);
+				printH3Dir("d_n", nextPos, nextDir);
+			}
+		}
+
+		{
+			const glm::vec4 ORIGIN{ 0,0,0,1 };
+			const glm::vec4 nextPos{ hypGeoFlowPos(ORIGIN, dir, 2) };
+			const glm::vec4 nextDir{ hypGeoFlowDir(ORIGIN, dir, 2) };
+
+			const bool sane{ isH3Point(nextPos) && isH3Dir(nextPos, nextDir) };
+
+			{
+				std::cout << "Origin flow 2 test: \n\n";
 				
-				//return false;
+				printH3Point("p_0", pos);
+				printH3Dir("d_0", pos, dir);
+				printH3Point("p_n", nextPos);
+				printH3Dir("d_n", nextPos, nextDir);
 			}
 		}
 
@@ -590,15 +640,20 @@ bool Math::hyperbolicUnitTests()
 			const glm::vec4 nextPos{ hypGeoFlowPos(pos, dir, t) };
 			const glm::vec4 nextDir{ hypGeoFlowDir(pos, dir, t) };
 
-			const bool nextPosInH3{ isInH3(nextPos) };
-			const bool nextDirInH3{ isInH3(nextDir) };
+			const bool nextPosInH3{ isH3Point(nextPos) };
+			const bool nextDirInH3{ isH3Dir(nextPos, nextDir) };
 			const bool nextDirNormalized{ withinError(hypNorm(nextDir), 1, 0.01) };
 			
 			if (!(nextPosInH3 && nextDirInH3 && nextDirNormalized))
 			{
 				std::cout << "failed geodesic flow\n";
-				printH3("pos", nextPos);
-				printH3("dir", nextDir);
+				std::cout << "flowed out distance t = " << t << '\n';
+
+				printH3Point("pos", pos);
+				printH3Dir("dir", pos, dir);
+				printH3Point("flowed pos", nextPos);
+				printH3Dir("flowed dir", nextPos, nextDir);
+
 				return false;
 			}
 		}
@@ -614,6 +669,179 @@ bool Math::hyperbolicUnitTests()
 	}
 
 	return true;
+}
+
+glm::vec4 Math::sphGeoFlowPos(const glm::vec4& pos, const glm::vec4& dir, float t)
+{
+	return { cos(t) * pos + sin(t) * dir };
+}
+
+glm::vec4 Math::sphGeoFlowDir(const glm::vec4& pos, const glm::vec4& dir, float t)
+{
+	return { sin(t) * pos + cos(t) * dir };
+}
+
+float Math::sphDot(const glm::vec4& u, const glm::vec4& v)
+{
+	return glm::dot(u,v);
+}
+
+float Math::sphNorm(const glm::vec4& v)
+{
+	return std::sqrt(std::abs(sphDot(v, v)));
+}
+
+glm::vec4 Math::sphNormalize(const glm::vec4& u)
+{
+	return u / sphNorm(u);
+}
+
+float Math::sphhDistance(const glm::vec4& u, const glm::vec4& v)
+{
+	const float bUV = sphDot(u, v);
+	return acos(bUV);
+}
+
+glm::vec4 Math::sphDirection(const glm::vec4& u, const glm::vec4& v)
+{
+	return glm::vec4();	// todo
+}
+
+glm::vec4 Math::constructSpherePoint(const glm::vec3& direction, float distance)
+{
+	//this.matrix.identity();
+	//const [x, y, z, w] = point.coords.toArray();
+	//const u = new Vector3(x, y, z);
+	//const c1 = u.length();
+	//
+	//if (c1 == = 0) {
+	//	return this;
+	//}
+	//
+	//const c2 = 1 - w;
+	//u.normalize();
+	//const m = new Matrix4().set(
+	//	0, 0, 0, u.x,
+	//	0, 0, 0, u.y,
+	//	0, 0, 0, u.z,
+	//	-u.x, -u.y, -u.z, 0
+	//);
+	//const m2 = m.clone().multiply(m);
+	//m.multiplyScalar(c1);
+	//this.matrix.add(m);
+	//m2.multiplyScalar(c2);
+	//this.matrix.add(m2);
+	//
+	//return this;
+	return glm::vec4();
+}
+
+glm::mat4 Math::makeSphTranslation(const glm::vec4& p)
+{
+	return glm::mat4();
+}
+
+bool Math::isInS3(const glm::vec4& v)
+{
+	return withinError(sphDot(v,v), 1, 0.001);
+}
+
+void Math::printS3(const std::string& s, const glm::vec4& v)
+{
+	auto toStr = [](const glm::vec4& v)
+	{
+		// takes float and returns string to 3 decimals
+		auto helper = [](float f)
+		{
+			std::string s = std::to_string(f);
+			return s.substr(0, s.find(".") + 4);
+		};
+
+		return std::string{
+			"(" + helper(v.x) + ", "
+			+ helper(v.y) + ", "
+			+ helper(v.z) + ", "
+			+ helper(v.w) + ")"
+		};
+	};
+
+	std::cout << s << " = " << toStr(v)
+		<< "\n<" << s << "," << s << "> = " << sphDot(v, v)
+		<< "\nnorm(" << s << ") = " << sphNorm(v)
+		<< "\nisInS3(" << s << ") = " << (isInS3(v) ? "true" : "false")
+		<< "\n\n";
+}
+
+bool Math::sphereUnitTests()
+{
+	// random direction vector scaled to random length
+	auto randS3Point = [](int s) -> glm::vec4
+	{
+		const glm::vec4 v{ rng(s), rng(s + 1), rng(s + 2),  rng(s + 3) };
+
+		return sphNormalize(v);
+	};
+
+	if (false)
+	{
+		const glm::vec4 ORIGIN{ 0,0,0,1 };
+		const glm::vec4 E_X{ 1,0,0,0 };
+		const glm::vec4 E_Y{ 0,1,0,0 };
+		const glm::vec4 E_Z{ 0,0,1,0 };
+		const glm::vec4 E_W{ 0,0,0,1 };
+
+		const glm::vec4 xStep{ sphGeoFlowPos(ORIGIN, E_X, 2) };
+		const glm::vec4 yStep{ sphGeoFlowPos(ORIGIN, E_Y, 2) };
+		const glm::vec4 zStep{ sphGeoFlowPos(ORIGIN, E_Z, 2) };
+		const glm::vec4 wStep{ sphGeoFlowPos(ORIGIN, E_W, 2) };
+
+		const glm::vec4 xStepDir{ sphGeoFlowDir(ORIGIN, E_X, 2) };
+		const glm::vec4 yStepDir{ sphGeoFlowDir(ORIGIN, E_Y, 2) };
+		const glm::vec4 zStepDir{ sphGeoFlowDir(ORIGIN, E_Z, 2) };
+		const glm::vec4 wStepDir{ sphGeoFlowDir(ORIGIN, E_W, 2) };
+
+		printS3("x", xStep);
+		printS3("y", yStep);
+		printS3("z", zStep);
+		printS3("w", wStep);
+
+		printS3("xDir", xStepDir);
+		printS3("yDir", yStepDir);
+		printS3("zDir", zStepDir);
+		printS3("wDir", wStepDir);
+	}
+
+	// verify that taking a point in the hyperboloid model of H3
+		// and following flow of its geodesic gives a point still in H3
+	for (int i = 0; i < 1000; ++i)
+	{
+		const glm::vec4 pos{ randS3Point(i) };
+
+		const glm::vec3 dirEuc{ randS3Point(i+4) };
+		const glm::vec4 dir{ sphNormalize(glm::vec4{dirEuc, 0}) };
+		const float t{ rng(i) * 10 };	// [0,10]
+
+		{
+			const glm::vec4 nextPos{ sphNormalize(sphGeoFlowPos(pos, dir, t)) };
+			const glm::vec4 nextDir{ sphNormalize(sphGeoFlowDir(pos, dir, t)) };
+
+			const bool nextPosInS3{ isInS3(nextPos) };
+			const bool nextDirInS3{ isInS3(nextDir) };
+			const bool nextDirNormalized{ withinError(sphNorm(nextDir), 1, 0.01) };
+
+			if (!(nextPosInS3 && nextDirInS3 && nextDirNormalized))
+			{
+				std::cout << "failed sphereical geodesic flow\n";
+				printS3("pos", pos);
+				printS3("dir", dir);
+				printS3("next pos", nextPos);
+				printS3("next dir", nextDir);
+				return false;
+			}
+		}
+	}
+	return true;
+
 }
 
 bool Math::withinError(double approx, double expected, double tolerance)

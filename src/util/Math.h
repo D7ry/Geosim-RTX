@@ -205,10 +205,49 @@ public:
 		float distance
 	);
 
-	static bool isInH3(const glm::vec4& v);
-	static void printH3(const std::string& s, const glm::vec4& v);
+	static bool isH3Point(const glm::vec4& p);
+	static bool isH3Dir(const glm::vec4& p, const glm::vec4& dir);
+	static void printH3Point(const std::string& s, const glm::vec4& v);
+	static void printH3Dir(const std::string& s, const glm::vec4& p, const glm::vec4& d);
 	static bool hyperbolicUnitTests();
 
+	
+	// Get point at distance t on the geodesic from pos in the direction dir
+	static glm::vec4 sphGeoFlowPos(
+		const glm::vec4& pos,
+		const glm::vec4& dir,
+		float t
+	);
+
+	// Get velocity/direction of point at distance t on 
+	// the geodesic from pos in the direction dir
+	static glm::vec4 sphGeoFlowDir(
+		const glm::vec4& pos,
+		const glm::vec4& dir,
+		float t
+	);
+
+	static float sphDot(const glm::vec4& u, const glm::vec4& v);
+	static float sphNorm(const glm::vec4& v);
+
+	static glm::vec4 sphNormalize(const glm::vec4& u);
+
+	static float sphhDistance(const glm::vec4& u, const glm::vec4& v);
+
+	static glm::vec4 sphDirection(const glm::vec4& u, const glm::vec4& v);
+
+	static glm::vec4 constructSpherePoint(
+		const glm::vec3& direction,
+		float distance
+	);
+
+	static glm::mat4 makeSphTranslation(const glm::vec4& p);
+
+	static bool isInS3(const glm::vec4& v);
+	static void printS3(const std::string& s, const glm::vec4& v);
+	static bool sphereUnitTests();
+
+	
 	static bool withinError(double approx, double expected, double tolerance);
 	static double getAbsoluteError(double approx, double expected);
 	static double getRelativeError(double approx, double expected);

@@ -311,7 +311,7 @@ PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, cons
 	{
 		if (isDebugRay)
 		{
-			if (!Math::isInH3(marchPos) || !Math::isInH3(marchDir))
+			if (!Math::isH3Point(marchPos) || !Math::isH3Point(marchDir))
 			{
 				std::cout << "bad step\npos: " << toStr(marchPos)
 					<< ", dot: " << Math::hypDot(marchPos, marchPos) 

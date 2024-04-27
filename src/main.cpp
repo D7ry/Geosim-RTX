@@ -53,6 +53,13 @@ int main()
         return 0;
     }
 
+    if (!Math::sphereUnitTests())
+    {
+        std::cout << "unit tests failed";
+        return 0;
+    }
+
+
     sf::Clock timer;
     timer.restart();
 
