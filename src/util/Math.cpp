@@ -475,7 +475,7 @@ void Math::printH3Point(const std::string& s, const glm::vec4& v)
 		auto helper = [](float f)
 		{
 			std::string s = std::to_string(f);
-			return s.substr(0, s.find(".") + 4);
+			return s.substr(0, s.find(".") + 10);
 		};
 
 		return std::string{
@@ -533,6 +533,8 @@ bool Math::hyperbolicUnitTests()
 		return constructHyperboloidPoint(randDir, randScalar);
 	};
 
+
+	// THIS PROBABLY DOESNT WORK
 	auto randH3Dir = [](const glm::vec4& pos, int s) -> glm::vec4
 	{
 		glm::vec3 randDir{ rng(s), rng(s + 1), rng(s + 2) };
@@ -568,6 +570,9 @@ bool Math::hyperbolicUnitTests()
 		const glm::vec4 p{ randH3Point(i) };
 
 		const bool inH3{ isH3Point(p) };
+
+		printH3Point("v", p);
+
 
 		if (!inH3)
 		{

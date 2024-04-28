@@ -95,6 +95,12 @@ double Sphere::SDF(const glm::vec4& p, const glm::vec4& positionWorldSpace) cons
         glm::length(euclideanPosition)
         ) };
 
+    if (!Math::isH3Point(hyperbolicPosition))
+    {
+        std::cout << "primitive position doesnt make sense\n";
+        Math::printH3Point("prim", hyperbolicPosition);
+    }
+
     // todo: figure out how this works and when to use
     //const glm::mat4 translation{ Math::generateHyperbolicExponentialMap(
     //    hyperbolicPosition

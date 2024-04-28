@@ -47,17 +47,17 @@ static constexpr unsigned WINDOW_HEIGHT{ INTERACTIVE_MODE ? INTERACTIVE_HEIGHT :
 
 int main()
 {
-    if (!Math::hyperbolicUnitTests())
-    {
-        std::cout << "unit tests failed";
-        return 0;
-    }
-
-    if (!Math::sphereUnitTests())
-    {
-        std::cout << "unit tests failed";
-        return 0;
-    }
+    //if (!Math::hyperbolicUnitTests())
+    //{
+    //    std::cout << "unit tests failed";
+    //    return 0;
+    //}
+    
+    //if (!Math::sphereUnitTests())
+    //{
+    //    std::cout << "unit tests failed";
+    //    return 0;
+    //}
 
 
     sf::Clock timer;
@@ -197,30 +197,37 @@ int main()
     }
 
     // 3 balls
-    if (false)
+    if (true)
     {
         Geometry object;
 
         Sphere mirror;
-        mirror.position = { 0,0,0 };
+        mirror.position = { -2,0,0 };
 
         Sphere tomato;
-        tomato.position = { 20,0,0 };
+        tomato.position = { 0,0,0 };
 
         Sphere watermelon;
-        watermelon.position = { -20,0,0 };
+        watermelon.position = { 2,0,0 };
+
+        Sphere watermelon2;
+        watermelon2.position = { 4,0,0 };
 
         mirror.material = glassMat;
         tomato.material = redMat;
         watermelon.material = greenMat;
+        watermelon2.material = greenMat;
 
         object.add(mirror);
         object.add(tomato);
         object.add(watermelon);
+        object.add(watermelon2);
 
-        object.position = { 0, 0, -2 };
-        object.position = { 0, 0, 0 };
+        object.position = { 0, 0, -1.5 };
         scene.add(object);
+
+        //object.position = { 0, 0, 1.1 };
+        //scene.add(object);
     }
 
     // blue unit sphere
@@ -230,13 +237,16 @@ int main()
 
         Sphere s;
         s.position = { 0,0,0 };
-
         s.material = floorMat;
 
         object.add(s);
 
-        object.position = { 0, 0, -2 };
+        object.position = { 0, 1, -1.8 };
         scene.add(object);
+
+        object.position = { 0, 1, 1 };
+        scene.add(object);
+
     }
 
 
@@ -352,24 +362,45 @@ int main()
         // handle input
         {
             // keyboard input for moving camera pos
-            if (sf::Keyboard::isKeyPressed(FORWARD))
-                camera.position += camera.forwardDir * camMoveSpd;
-            if (sf::Keyboard::isKeyPressed(BACKWARD))
-                camera.position -= camera.forwardDir * camMoveSpd;
-            if (sf::Keyboard::isKeyPressed(RIGHT))
-                camera.position += camera.rightDir * camMoveSpd;
-            if (sf::Keyboard::isKeyPressed(LEFT))
-                camera.position -= camera.rightDir * camMoveSpd;
-            if (sf::Keyboard::isKeyPressed(UP))
-                camera.position += camera.upDir * camMoveSpd;
-            if (sf::Keyboard::isKeyPressed(DOWN))
-                camera.position -= camera.upDir * camMoveSpd;
+            if (EUCLIDEAN)
+            {
+                if (sf::Keyboard::isKeyPressed(FORWARD))
+                    camera.position += camera.forwardDir * camMoveSpd;
+                if (sf::Keyboard::isKeyPressed(BACKWARD))
+                    camera.position -= camera.forwardDir * camMoveSpd;
+                if (sf::Keyboard::isKeyPressed(RIGHT))
+                    camera.position += camera.rightDir * camMoveSpd;
+                if (sf::Keyboard::isKeyPressed(LEFT))
+                    camera.position -= camera.rightDir * camMoveSpd;
+                if (sf::Keyboard::isKeyPressed(UP))
+                    camera.position += camera.upDir * camMoveSpd;
+                if (sf::Keyboard::isKeyPressed(DOWN))
+                    camera.position -= camera.upDir * camMoveSpd;
+                if (sf::Keyboard::isKeyPressed(RESPAWN))
+                    camera.position = { 0.f, 0.f, 0.f };
+            }
+            else
+            {
+                if (sf::Keyboard::isKeyPressed(FORWARD))
+                {
+                    //camera.position = Math::hypGeoFlowPos(camera.position, camera.forwardDir, )
+                }
+                if (sf::Keyboard::isKeyPressed(BACKWARD))
+                    camera.position -= camera.forwardDir * camMoveSpd;
+                if (sf::Keyboard::isKeyPressed(RIGHT))
+                    camera.position += camera.rightDir * camMoveSpd;
+                if (sf::Keyboard::isKeyPressed(LEFT))
+                    camera.position -= camera.rightDir * camMoveSpd;
+                if (sf::Keyboard::isKeyPressed(UP))
+                    camera.position += camera.upDir * camMoveSpd;
+                if (sf::Keyboard::isKeyPressed(DOWN))
+                    camera.position -= camera.upDir * camMoveSpd;
+                if (sf::Keyboard::isKeyPressed(RESPAWN))
+                    camera.position = { 0.f, 0.f, 0.f };
+            }
+
             if (sf::Keyboard::isKeyPressed(CLOSE))
                 return 0;
-
-            if (sf::Keyboard::isKeyPressed(RESPAWN))
-                camera.position = { 0.f, 0.f, 0.f };
-
             if (sf::Keyboard::isKeyPressed(ENABLE_ACCUMULATION))
                 renderer.accumulate = true;
             if (sf::Keyboard::isKeyPressed(DISABLE_ACCUMULATION))

@@ -260,20 +260,17 @@ PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, cons
 	//	std::cout << "here!\n";
 
 	float totalDistanceTraveled = 0.0;
-	const int MAX_NUM_STEPS = 32;
+	const int MAX_NUM_STEPS = 16;
 	const float MIN_HIT_DISTANCE = .1;
 	const float MAX_TRACE_DISTANCE = 10e35;	// max float value on order of 10e38
 
 	// translate camera position from euclidean to hyperbolic (translated to hyperboloid)
-	glm::vec4 hypPos{ Math::constructHyperboloidPoint(
-		ray.origin,
-		glm::length(ray.origin)
-	)};
+	//glm::vec4 hypPos{ Math::constructHyperboloidPoint(
+	//	ray.origin,
+	//	glm::length(ray.origin)
+	//)};
 
-	glm::vec4 hypDir{ Math::constructHyperboloidPoint(
-		ray.dir,
-		1
-	) };
+
 
 	auto toStr = [](const glm::vec4& v)
 	{
@@ -293,8 +290,8 @@ PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, cons
 	};
 	
 	// generate direction then transform to hyperboloid
-	glm::vec4 marchPos{ hypPos };
-	glm::vec4 marchDir{ hypDir };
+	glm::vec4 marchPos{ 0,0,0,1 };
+	glm::vec4 marchDir{ ray.dir, 0 };
 	// glm::vec4 marchDir{ Math::hypDirection(eucRayPos, eucRayDir) };	//creates a point that our ray will go through
 
 
@@ -311,12 +308,16 @@ PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, cons
 	{
 		if (isDebugRay)
 		{
-			if (!Math::isH3Point(marchPos) || !Math::isH3Point(marchDir))
+			if (!Math::isH3Point(marchPos))
 			{
-				std::cout << "bad step\npos: " << toStr(marchPos)
-					<< ", dot: " << Math::hypDot(marchPos, marchPos) 
-					<< "\ndir: " << toStr(marchDir)
-					<< ", dot: " << Math::hypDot(marchDir, marchDir) << '\n';
+				//std::cout << "ray not in h3\n";
+				//Math::printH3Point("p", marchPos);
+				//Math::printH3Dir("d", marchPos, marchDir);
+				
+				//std::cout << "bad step\npos: " << toStr(marchPos)
+				//	<< ", dot: " << Math::hypDot(marchPos, marchPos) 
+				//	<< "\ndir: " << toStr(marchDir)
+				//	<< ", dot: " << Math::hypDot(marchDir, marchDir) << '\n';
 			}
 		}
 
@@ -338,7 +339,7 @@ PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, cons
 
 			closestHit = std::make_unique<Intersection>(i);
 		}
-		else if (totalDistanceTraveled + dist > MAX_TRACE_DISTANCE)
+		else if (totalDistanceTraveled + dist > MAX_TRACE_DISTANCE || std::isnan(marchPos.x) || std::isnan(marchDir.x))
 		{
 			if (isDebugRay && PRINT_DEBUG_MARCHING)
 				std::cout << "toofar, termininat, dist = " << dist << '\n';
@@ -346,7 +347,7 @@ PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, cons
 		}
 		else
 		{
-			const float ss{ (float)dist / 1 };	// substep size
+			const float ss{ (float)dist / 4 };	// substep size
 			while (dist > 0)
 			{
 				auto newMarch = march(marchPos, marchDir, ss);
@@ -459,36 +460,65 @@ double Renderer::getClosestDistance(const glm::vec4& p, const Scene& scene)
 glm::vec3 Renderer::computeNormal(const glm::vec4& p, const Scene& scene)
 {
 	
+	if (EUCLIDEAN)
+	{
+		static constexpr float DELTA{ 0.001 };
+		static constexpr glm::vec4 DX{ DELTA, 0, 0, 0 };
+		static constexpr glm::vec4 DY{ 0, DELTA, 0, 0 };
+		static constexpr glm::vec4 DZ{ 0, 0, DELTA, 0 };
+		
+		float xGradient = getClosestDistance(p + DX, scene) - getClosestDistance(p - DX, scene);
+		float yGradient = getClosestDistance(p + DY, scene) - getClosestDistance(p - DY, scene);
+		float zGradient = getClosestDistance(p + DZ, scene) - getClosestDistance(p - DZ, scene);
+		
+		const glm::vec3 normal{ xGradient, yGradient, zGradient };
+		
+		return glm::normalize(normal);
+	}
+	else
+	{
+		static constexpr float EPSILON{ 0.001f };
 
-	static constexpr float DELTA{ 0.001 };
-	static constexpr glm::vec4 DX{ DELTA, 0, 0, 0 };
-	static constexpr glm::vec4 DY{ 0, DELTA, 0, 0 };
-	static constexpr glm::vec4 DZ{ 0, 0, DELTA, 0 };
-	
-	float xGradient = getClosestDistance(p + DX, scene) - getClosestDistance(p - DX, scene);
-	float yGradient = getClosestDistance(p + DY, scene) - getClosestDistance(p - DY, scene);
-	float zGradient = getClosestDistance(p + DZ, scene) - getClosestDistance(p - DZ, scene);
-	
-	const glm::vec3 normal{ xGradient, yGradient, zGradient };
-	
-	return glm::normalize(normal);
+		// hyperbolic normalization
+		// Compute basis vectors for the tangent hyperplane at p
+		glm::vec4 basis_x = Math::hypNormalize(glm::vec4(p.w, 0.0f, 0.0f, p.x));
+		glm::vec4 basis_y = glm::vec4(0.0f, p.w, 0.0f, p.y);
+		glm::vec4 basis_z = glm::vec4(0.0f, 0.0f, p.w, p.z);
+		
+		// Gram-Schmidt orthogonalization
+		basis_y = Math::hypNormalize(basis_y - Math::hypDot(basis_y, basis_x) * basis_x);
+		basis_z = Math::hypNormalize(basis_z - Math::hypDot(basis_z, basis_x) * basis_x - Math::hypDot(basis_z, basis_y) * basis_y);
+		
+		// Compute gradients using finite differences
+		float xGradient = getClosestDistance(p + EPSILON * basis_x, scene) - getClosestDistance(p - EPSILON * basis_x, scene);
+		float yGradient = getClosestDistance(p + EPSILON * basis_y, scene) - getClosestDistance(p - EPSILON * basis_y, scene);
+		float zGradient = getClosestDistance(p + EPSILON * basis_z, scene) - getClosestDistance(p - EPSILON * basis_z, scene);
+		
+		// Construct the normal vector
+		glm::vec4 normal = Math::hypNormalize(xGradient * basis_x + yGradient * basis_y + zGradient * basis_z);
+		
+		return normal;
 
-
-	//static constexpr float EPS{ 0.001 };
-	//glm::vec4 basis_x = Math::hypNormalize(glm::vec4(p.w, 0.0, 0.0, p.x));  // dw/dx = x/w on hyperboloid
-	//glm::vec4 basis_y = glm::vec4(0.0, p.w, 0.0, p.y);  // dw/dy = y/denom
-	//glm::vec4 basis_z = glm::vec4(0.0, 0.0, p.w, p.z);  // dw/dz = z/denom  /// note that these are not orthonormal!
-	//basis_y = hypNormalize(basis_y - hypDot(basis_y, basis_x) * basis_x); // need to Gram Schmidt
-	//basis_z = hypNormalize(basis_z - hypDot(basis_z, basis_x) * basis_x - hypDot(basis_z, basis_y) * basis_y);
-	//
-	//
-	//float xGradient = getClosestDistance(p + DX, scene) - getClosestDistance(p - DX, scene);
-	//float yGradient = getClosestDistance(p + DY, scene) - getClosestDistance(p - DY, scene);
-	//float zGradient = getClosestDistance(p + DZ, scene) - getClosestDistance(p - DZ, scene);
-	//
-	//const glm::vec3 normal{ xGradient, yGradient, zGradient };
-	//
-	//return glm::normalize(normal);
+		// euclidean normalization (incorrect but looks nicer)
+		// Compute basis vectors for the tangent hyperplane at p
+		//glm::vec4 basis_x = glm::normalize(glm::vec4(p.w, 0.0f, 0.0f, p.x));
+		//glm::vec4 basis_y = glm::vec4(0.0f, p.w, 0.0f, p.y);
+		//glm::vec4 basis_z = glm::vec4(0.0f, 0.0f, p.w, p.z);
+		//
+		//// Gram-Schmidt orthogonalization
+		//basis_y = glm::normalize(basis_y - Math::hypDot(basis_y, basis_x) * basis_x);
+		//basis_z = glm::normalize(basis_z - Math::hypDot(basis_z, basis_x) * basis_x - Math::hypDot(basis_z, basis_y) * basis_y);
+		//
+		//// Compute gradients using finite differences
+		//float xGradient = getClosestDistance(p + EPSILON * basis_x, scene) - getClosestDistance(p - EPSILON * basis_x, scene);
+		//float yGradient = getClosestDistance(p + EPSILON * basis_y, scene) - getClosestDistance(p - EPSILON * basis_y, scene);
+		//float zGradient = getClosestDistance(p + EPSILON * basis_z, scene) - getClosestDistance(p - EPSILON * basis_z, scene);
+		//
+		//// Construct the normal vector
+		//glm::vec4 normal = glm::normalize(xGradient * basis_x + yGradient * basis_y + zGradient * basis_z);
+		//
+		//return normal;
+	}
 }
 
 glm::vec3 Renderer::environmentalLight(const glm::vec3& dir)
