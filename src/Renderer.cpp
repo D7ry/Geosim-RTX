@@ -260,7 +260,7 @@ PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, cons
 	//	std::cout << "here!\n";
 
 	float totalDistanceTraveled = 0.0;
-	const int MAX_NUM_STEPS = 16;
+	const int MAX_NUM_STEPS = 8;
 	const float MIN_HIT_DISTANCE = .1;
 	const float MAX_TRACE_DISTANCE = 10e35;	// max float value on order of 10e38
 
@@ -289,14 +289,24 @@ PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, cons
 		};
 	};
 	
+	const glm::vec4 p{ hypCamPosX, hypCamPosY, hypCamPosZ, hypCamPosW };
+
 	// generate direction then transform to hyperboloid
-	glm::vec4 marchPos{ 0,0,0,1 };
-	glm::vec4 marchDir{ ray.dir, 0 };
-	// glm::vec4 marchDir{ Math::hypDirection(eucRayPos, eucRayDir) };	//creates a point that our ray will go through
+	const glm::vec4 hyperbolicPos{
+		p//Math::correctH3Point(p)
+	};
 
+	const glm::vec4 d{ ray.dir, 0 };
 
-	if (isDebugRay && PRINT_DEBUG_MARCHING && !EUCLIDEAN)
-		std::cout << "Starting March!\n";
+	const glm::vec4 hyperbolicDir{
+		Math::correctDirection(p,d)
+	};
+
+	glm::vec4 marchPos{ hyperbolicPos };
+	glm::vec4 marchDir{ hyperbolicDir };
+
+	//if (isDebugRay && PRINT_DEBUG_MARCHING && !EUCLIDEAN)
+	//	std::cout << "Starting March!\n";
 
 	if (isDebugRay && LOG_MARCH_PATH)
 	{
@@ -306,11 +316,16 @@ PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, cons
 
 	for (int i = 0; i < MAX_NUM_STEPS; ++i)
 	{
+		
 		if (isDebugRay)
 		{
 			if (!Math::isH3Point(marchPos))
+				std::cout << "ray not in h3 (step: " << i << "\n)";
+			if (!Math::isH3Dir(marchPos, marchDir))
+				std::cout << "raydir not in h3 (step: " << i << "\n)";
+
 			{
-				//std::cout << "ray not in h3\n";
+				//std::cout << "ray not in h3 (step: " << i << "\n)";
 				//Math::printH3Point("p", marchPos);
 				//Math::printH3Dir("d", marchPos, marchDir);
 				
@@ -339,7 +354,13 @@ PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, cons
 
 			closestHit = std::make_unique<Intersection>(i);
 		}
-		else if (totalDistanceTraveled + dist > MAX_TRACE_DISTANCE || std::isnan(marchPos.x) || std::isnan(marchDir.x))
+		else if (
+				!Math::isH3Point(marchPos) ||
+				!Math::isH3Dir(marchPos, marchDir) ||
+				totalDistanceTraveled + dist > MAX_TRACE_DISTANCE ||
+				std::isnan(marchPos.x) ||
+				std::isnan(marchDir.x)
+			)
 		{
 			if (isDebugRay && PRINT_DEBUG_MARCHING)
 				std::cout << "toofar, termininat, dist = " << dist << '\n';
@@ -347,7 +368,7 @@ PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, cons
 		}
 		else
 		{
-			const float ss{ (float)dist / 4 };	// substep size
+			const float ss{ (float)dist / 1 };	// substep size
 			while (dist > 0)
 			{
 				auto newMarch = march(marchPos, marchDir, ss);
@@ -365,23 +386,26 @@ PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, cons
 
 				if (isDebugRay && PRINT_DEBUG_MARCHING && !EUCLIDEAN)
 				{
-					std::cout << "Step size: " << dist
-						<< ", sub step size: " << ss
-						<< "\npos: " << toStr(marchPos) << " => " << toStr(newMarch.first)
-						<< "\ndir: " << toStr(marchDir) << " => " << toStr(newMarch.second)
-						<< '\n';
+					//std::cout << "Step size: " << dist
+					//	<< ", sub step size: " << ss
+					//	<< "\npos: " << toStr(marchPos) << " => " << toStr(newMarch.first)
+					//	<< "\ndir: " << toStr(marchDir) << " => " << toStr(newMarch.second)
+					//	<< '\n';
 				}
 				
-				marchPos = newMarch.first;
+				marchPos = Math::correctH3Point(newMarch.first);
+				//marchPos = newMarch.first;
 				marchDir = Math::hypNormalize(newMarch.second);
+				marchDir = Math::hypDirection(marchPos, newMarch.second);
+				marchDir = Math::correctDirection(marchPos, newMarch.second);
 				totalDistanceTraveled += ss;
 				dist -= ss;
 			}
 		}
 	}
 
-	if (isDebugRay && PRINT_DEBUG_MARCHING && !EUCLIDEAN)
-		std::cout << "total distance traveled: " << totalDistanceTraveled << '\n';
+	//if (isDebugRay && PRINT_DEBUG_MARCHING && !EUCLIDEAN)
+	//	std::cout << "total distance traveled: " << totalDistanceTraveled << '\n';
 
 	if (isDebugRay && LOG_MARCH_PATH)
 	{

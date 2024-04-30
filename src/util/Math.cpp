@@ -442,12 +442,51 @@ glm::vec4 Math::hypDirection(const glm::vec4& u, const glm::vec4& v)
 	return hypNormalize(w);
 }
 
+// takes E3 point and turns it into H3 point
 glm::vec4 Math::constructHyperboloidPoint(const glm::vec3& direction, float distance)
 {
 	const float w{ cosh(distance) };
 	const float magSquared = w * w - 1;
 	const glm::vec3 d{ std::sqrtf(magSquared) * glm::normalize(direction) };
 	return glm::vec4{ d, w };
+}
+
+glm::vec4 Math::correctH3Point(const glm::vec4 p)
+{
+	const float minkowskiNorm = hypDot(p, p);
+
+	if (std::abs(minkowskiNorm + 1) > 1e-6)
+	{
+		// Position is not in H^3, project it back onto the hyperboloid
+		const float scaleFactor = std::sqrt(-1 / minkowskiNorm);
+		const glm::vec4 correctedPosition = p * scaleFactor;
+		return correctedPosition;
+	}
+	else
+		return p;
+}
+
+glm::vec4 Math::correctDirection(const glm::vec4& p, const glm::vec4& d)
+{
+	// Construct an orthonormal basis for the tangent space at p
+	float x = p.x;
+	float y = p.y;
+	float z = p.z;
+	float w = p.w;
+
+	glm::vec4 basisX = glm::vec4(w, 0, 0, x);
+	glm::vec4 basisY = glm::vec4(0, w, 0, y);
+	glm::vec4 basisZ = glm::vec4(0, 0, w, z);
+
+	// Express the local direction in terms of the tangent space basis
+	float dx = d.x;
+	float dy = d.y;
+	float dz = d.z;
+
+	glm::vec4 rayDir = dx * basisX + dy * basisY + dz * basisZ;
+	rayDir = hypNormalize(rayDir);
+
+	return rayDir;
 }
 
 bool Math::isH3Point(const glm::vec4& v)

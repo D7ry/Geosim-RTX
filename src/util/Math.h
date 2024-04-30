@@ -205,6 +205,9 @@ public:
 		float distance
 	);
 
+	static glm::vec4 correctH3Point(const glm::vec4 p);
+	static glm::vec4 correctDirection(const glm::vec4& p, const glm::vec4& d);
+
 	static bool isH3Point(const glm::vec4& p);
 	static bool isH3Dir(const glm::vec4& p, const glm::vec4& dir);
 	static void printH3Point(const std::string& s, const glm::vec4& v);

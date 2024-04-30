@@ -93,7 +93,7 @@ double Sphere::SDF(const glm::vec4& p, const glm::vec4& positionWorldSpace) cons
     const glm::vec4 hyperbolicPosition{ Math::constructHyperboloidPoint(
         euclideanPosition,
         glm::length(euclideanPosition)
-        ) };
+    ) };
 
     if (!Math::isH3Point(hyperbolicPosition))
     {
@@ -125,12 +125,12 @@ double Sphere::SDF(const glm::vec4& p, const glm::vec4& positionWorldSpace) cons
 
         if (isDebugRay && PRINT_DEBUG_MARCHING)
         {
-            if (!Math::isH3Point(p) )//|| !Math::isInH3(d))
-                std::cout << "prim\n";
-
-            //std::cout << "displacement: " << toStr(displacement) << '\n';
-            std::cout << "p: " << toStr(p) << '\n';
-            std::cout << "distance ; " << dist << '\n';
+            //if (!Math::isH3Point(p) )//|| !Math::isInH3(d))
+            //    std::cout << "prim\n";
+            //
+            ////std::cout << "displacement: " << toStr(displacement) << '\n';
+            //std::cout << "p: " << toStr(p) << '\n';
+            //std::cout << "distance ; " << dist << '\n';
         }
 
         return dist;

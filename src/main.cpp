@@ -27,6 +27,11 @@ static constexpr sf::Keyboard::Key DOWN{ sf::Keyboard::Key::LShift };
 static constexpr sf::Keyboard::Key CLOSE{ sf::Keyboard::Key::Escape };
 static constexpr sf::Keyboard::Key RESPAWN{ sf::Keyboard::Key::X };
 
+static constexpr sf::Keyboard::Key INC_PITCH{ sf::Keyboard::Key::Up };
+static constexpr sf::Keyboard::Key DEC_PITCH{ sf::Keyboard::Key::Down };
+static constexpr sf::Keyboard::Key INC_YAW{ sf::Keyboard::Key::Right };
+static constexpr sf::Keyboard::Key DEC_YAW{ sf::Keyboard::Key::Left };
+
 static constexpr sf::Keyboard::Key ENABLE_ACCUMULATION{ sf::Keyboard::Key::Equal };
 static constexpr sf::Keyboard::Key DISABLE_ACCUMULATION{ sf::Keyboard::Key::Dash };
 
@@ -122,22 +127,22 @@ int main()
 
     /// create scene
     // snowman
-    if (EUCLIDEAN)
+    if (false)
     {
         Geometry snowmanObject;    // scene will have one object
 
         // create geometry of primitives
         Sphere head;
         head.position = { 0.f, 1.f, 0.f };
-        head.radius = .5;
+        head.radius = 1;
 
         Sphere middle;
         middle.position = { 0.f, 0.f, 0.f };
-        middle.radius = .7;
+        middle.radius = 1.5;
 
         Sphere bottom;
         bottom.position = { 0.f, -1.1f, 0.f };
-        bottom.radius = .9;
+        bottom.radius = 2;
 
         // assign materials
         head.material = lightMat;
@@ -154,12 +159,12 @@ int main()
         snowmanObject.add(bottom);
 
         // add one instance of obj to scene
-        snowmanObject.position = { 0, 1, -4 };
+        snowmanObject.position = { -2, 0, 0 };
         scene.add(snowmanObject);
 
         // add another, positioned elsewhere
-        snowmanObject.position = { 3, 2, -4 };
-        scene.add(snowmanObject);
+        //snowmanObject.position = { 3, 2, -4 };
+        //scene.add(snowmanObject);
 
         // add another, positioned elsewhere
         //snowmanObject.position = { 103, 125, -34 };
@@ -167,7 +172,7 @@ int main()
     }
 
     // floor
-    if (EUCLIDEAN)
+    if (false)
     {
         Geometry floorObject;
         Sphere floor;
@@ -338,6 +343,88 @@ int main()
     //camera.pitch = -0.279047;
     //camera.yaw = 3.54052;
 
+    camera.positionHyp = { 0, 0, -0.302007, 1.01509, };
+    hypCamPosX = 0;
+    hypCamPosY = 0;
+    hypCamPosZ = -0.302007;
+    hypCamPosW = 1.01509;
+    //camera.pitch = -1.5608;
+    //camera.yaw = -4.99805;
+
+    camera.positionHyp = { 0.100167, 0, 0, 1.005, };
+    hypCamPosX = 0.100167;
+    hypCamPosY = 0;
+    hypCamPosZ = 0;
+    hypCamPosW = 1.005;
+    camera.pitch = -0.00806201;
+    camera.yaw = 5.25145;
+
+
+    camera.positionHyp = { -0.100671, 0, 0, 1.01509, };
+    hypCamPosX = -0.100671;
+    hypCamPosY = 0;
+    hypCamPosZ = 0;
+    hypCamPosW = 1.01509;
+    camera.pitch = -0.0490776;
+    camera.yaw = 3.54051;
+
+
+    camera.positionHyp = { -0.420647, 0, 0, 1.07238, };
+    hypCamPosX = -0.420647;
+    hypCamPosY = 0;
+    hypCamPosZ = 0;
+    hypCamPosW = 1.07238;
+    camera.pitch = -0.0022026;
+    camera.yaw = 4.09129;
+
+    camera.positionHyp = { 0, 0.100167, 0, 1.005, };
+    hypCamPosX = 0;
+    hypCamPosY = 0.100167;
+    hypCamPosZ = 0;
+    hypCamPosW = 1.005;
+    camera.pitch = 0.0446724;
+    camera.yaw = 5.38621;
+
+
+    camera.positionHyp = { 0.409801, 0.104248, 0, 1.04595, };
+    hypCamPosX = 0.409801;
+    hypCamPosY = 0.104248;
+    hypCamPosZ = 0;
+    hypCamPosW = 1.04595;
+    camera.pitch = -0.0490776;
+    camera.yaw = 5.55027;
+
+
+    //camera.positionHyp = { 0.217076, 0.429383, -0.111156, 1.11528, };
+    //hypCamPosX = 0.217076;
+    //hypCamPosY = 0.429383;
+    //hypCamPosZ = -0.111156;
+    //hypCamPosW = 1.11528;
+    //camera.pitch = 0.167719;
+    //camera.yaw = 5.18699;
+
+    camera.positionHyp = { -0.496761, 0, -0.750889, 1.34559, };
+    hypCamPosX = -0.496761;
+    hypCamPosY = 0;
+    hypCamPosZ = -0.750889;
+    hypCamPosW = 1.34559;
+    camera.pitch = 0.0583443;
+    camera.yaw = 5.36472;
+
+    camera.positionHyp = { -0.887794, 0, -0.56196, 1.45051, };
+    hypCamPosX = -0.887794;
+    hypCamPosY = 0;
+    hypCamPosZ = -0.56196;
+    hypCamPosW = 1.45051;
+    camera.pitch = 0.0114693;
+    camera.yaw = 5.42917;
+
+    camera.positionHyp = { 0,0,0,1 };
+    hypCamPosX = 0;
+    hypCamPosY = 0;
+    hypCamPosZ = 0;
+    hypCamPosW = 1;
+
     sf::Vector2i mPosPrev{ sf::Mouse::getPosition() };
     sf::Vector2i mPosCur{ sf::Mouse::getPosition() };
 
@@ -381,22 +468,136 @@ int main()
             }
             else
             {
+                auto directionToSphericalAngles = [](const glm::vec4& direction) {
+                    // Extract the components of the direction vector
+                    float dx = direction.x;
+                    float dy = direction.y;
+                    float dz = direction.z;
+                    float dw = direction.w;
+
+                    // Compute the pitch angle
+                    float pitch = std::atan2(dz, std::sqrt(dx * dx + dy * dy));
+
+                    // Compute the yaw angle
+                    float yaw = std::atan2(dy, dx);
+
+                    return std::make_pair(pitch, yaw);
+                };
+
                 if (sf::Keyboard::isKeyPressed(FORWARD))
                 {
-                    //camera.position = Math::hypGeoFlowPos(camera.position, camera.forwardDir, )
+                    const glm::vec4 nextPos{ 
+                        Math::hypGeoFlowPos(camera.positionHyp, camera.forwardDirHyp, camMoveSpd) 
+                    };
+                    const glm::vec4 nextDir{
+                        Math::hypGeoFlowDir(camera.positionHyp, camera.forwardDirHyp, camMoveSpd)
+                    };
+                    camera.positionHyp = nextPos;
+                    //camera.forwardDirHyp = nextDir;
+
+                    const auto pitchYaw{ directionToSphericalAngles(nextDir) };
+                    //camera.pitch = pitchYaw.first;
+                    //camera.yaw = pitchYaw.second;
+
+                    //std::cout << "after: \n";
+                    //std::cout << "p: " << camera.pitch
+                    //    << " y: " << camera.yaw << '\n';
+                    
                 }
                 if (sf::Keyboard::isKeyPressed(BACKWARD))
-                    camera.position -= camera.forwardDir * camMoveSpd;
+                {
+                    const glm::vec4 nextPos{
+                        Math::hypGeoFlowPos(camera.positionHyp, -camera.forwardDirHyp, camMoveSpd)
+                    };
+                    const glm::vec4 nextDir{
+                        Math::hypGeoFlowDir(camera.positionHyp, -camera.forwardDirHyp, camMoveSpd)
+                    };
+                    camera.positionHyp = nextPos;
+                    //camera.forwardDirHyp = -nextDir;
+
+                    const auto pitchYaw{ directionToSphericalAngles(nextDir) };
+                    //camera.pitch = pitchYaw.first;
+                    //camera.yaw = pitchYaw.second;
+                }                
+                
                 if (sf::Keyboard::isKeyPressed(RIGHT))
-                    camera.position += camera.rightDir * camMoveSpd;
+                {
+                    const glm::vec4 nextPos{
+                        Math::hypGeoFlowPos(camera.positionHyp, camera.rightDirHyp, camMoveSpd)
+                    };
+                    const glm::vec4 nextDir{
+                        Math::hypGeoFlowDir(camera.positionHyp, camera.rightDirHyp, camMoveSpd)
+                    };
+                    camera.positionHyp = nextPos;
+                    //camera.rightDirHyp = nextDir;
+
+                    const auto pitchYaw{ directionToSphericalAngles(nextDir) };
+                    //camera.pitch = pitchYaw.first;
+                    //camera.yaw = pitchYaw.second;
+                }
                 if (sf::Keyboard::isKeyPressed(LEFT))
-                    camera.position -= camera.rightDir * camMoveSpd;
+                {
+                    const glm::vec4 nextPos{
+                        Math::hypGeoFlowPos(camera.positionHyp, -camera.rightDirHyp, camMoveSpd)
+                    };
+                    const glm::vec4 nextDir{
+                        Math::hypGeoFlowDir(camera.positionHyp, -camera.rightDirHyp, camMoveSpd)
+                    };
+                    camera.positionHyp = nextPos;
+                    //camera.rightDirHyp = -nextDir;
+
+                    const auto pitchYaw{ directionToSphericalAngles(nextDir) };
+                    //camera.pitch = pitchYaw.first;
+                    //camera.yaw = pitchYaw.second;
+                }                
                 if (sf::Keyboard::isKeyPressed(UP))
-                    camera.position += camera.upDir * camMoveSpd;
+                {
+                    const glm::vec4 nextPos{
+                        Math::hypGeoFlowPos(camera.positionHyp, camera.upDirHyp, camMoveSpd)
+                    };
+                    const glm::vec4 nextDir{
+                        Math::hypGeoFlowDir(camera.positionHyp, camera.upDirHyp, camMoveSpd)
+                    };
+                    camera.positionHyp = nextPos;
+                    //camera.upDirHyp = nextDir;
+
+
+                    const auto pitchYaw{ directionToSphericalAngles(nextDir) };
+                    //camera.pitch = pitchYaw.first;
+                    //camera.yaw = pitchYaw.second;
+                }                
                 if (sf::Keyboard::isKeyPressed(DOWN))
-                    camera.position -= camera.upDir * camMoveSpd;
+                {
+                    const glm::vec4 nextPos{
+                        Math::hypGeoFlowPos(camera.positionHyp, -camera.upDirHyp, camMoveSpd)
+                    };
+                    const glm::vec4 nextDir{
+                        Math::hypGeoFlowDir(camera.positionHyp, -camera.upDirHyp, camMoveSpd)
+                    };
+                    camera.positionHyp = nextPos;
+                    //camera.upDirHyp = -nextDir;
+
+                    const auto pitchYaw{ directionToSphericalAngles(nextDir) };
+                    //camera.pitch = pitchYaw.first;
+                    //camera.yaw = pitchYaw.second;
+                }                      
                 if (sf::Keyboard::isKeyPressed(RESPAWN))
-                    camera.position = { 0.f, 0.f, 0.f };
+                {
+                    camera.positionHyp = { 0.f, 0.f, 0.f, 1.f };
+                    //camera.yaw = glm::three_over_two_pi<float>();
+                    //camera.pitch = 0;
+                }
+
+                
+                //std::cout << "p: " << camera.pitch
+                //    << " y: " << camera.yaw << '\n';
+
+                camera.positionHyp = Math::correctH3Point(camera.positionHyp);
+
+                hypCamPosX = camera.positionHyp.x;
+                hypCamPosY = camera.positionHyp.y;
+                hypCamPosZ = camera.positionHyp.z;
+                hypCamPosW = camera.positionHyp.w;
             }
 
             if (sf::Keyboard::isKeyPressed(CLOSE))
@@ -413,12 +614,31 @@ int main()
                 const auto& c = camera;
 
                 // print pos and euler angles of camera
-                std::cout << "camera.position = {" <<
-                    c.position.x << ", " <<
-                    c.position.y << ", " <<
-                    c.position.z <<
-                    "};\ncamera.pitch = " << c.pitch << 
-                    ";\ncamera.yaw = " << c.yaw << ";\n\n";
+
+                if (EUCLIDEAN)
+                {
+                    std::cout << "camera.position = {" <<
+                        c.position.x << ", " <<
+                        c.position.y << ", " <<
+                        c.position.z <<
+                        "};\ncamera.pitch = " << c.pitch <<
+                        ";\ncamera.yaw = " << c.yaw << ";\n\n";
+                }
+                else
+                {
+                    std::cout << "camera.positionHyp = {" <<
+                        c.positionHyp.x << ", " <<
+                        c.positionHyp.y << ", " <<
+                        c.positionHyp.z << ", " <<
+                        c.positionHyp.w << ", " << "};\n" <<
+
+                        "hypCamPosX = " << hypCamPosX << ";\n" <<
+                        "hypCamPosY = " << hypCamPosY << ";\n" <<
+                        "hypCamPosZ = " << hypCamPosZ << ";\n" <<
+                        "hypCamPosW = " << hypCamPosW <<
+                        ";\ncamera.pitch = " << c.pitch <<
+                        ";\ncamera.yaw = " << c.yaw << ";\n\n";
+                }
             }
 
             if (sf::Keyboard::isKeyPressed(CAM_SLOW_SPD_KEY))
@@ -427,6 +647,15 @@ int main()
                 camMoveSpd = CAM_MED_SPD;
             if (sf::Keyboard::isKeyPressed(CAM_FAST_SPD_KEY))
                 camMoveSpd = CAM_FAST_SPD;
+
+            if (sf::Keyboard::isKeyPressed(INC_PITCH))
+                camera.pitch += 1 / 8.f;
+            if (sf::Keyboard::isKeyPressed(DEC_PITCH))
+                camera.pitch -= 1 / 8.f;
+            if (sf::Keyboard::isKeyPressed(INC_YAW))
+                camera.yaw += 1 / 8.f;
+            if (sf::Keyboard::isKeyPressed(DEC_YAW))
+                camera.yaw -= 1 / 8.f;
 
             // mouse input for angling/pointing camera
             mPosPrev = mPosCur;
@@ -437,6 +666,18 @@ int main()
             camera.yaw   +=  (mouseMove.x * MOUSE_SENSITIVITY) / 256.f;
             camera.pitch += -(mouseMove.y * MOUSE_SENSITIVITY) / 256.f;    // subtract so controls aren't inverted
         }
+
+        const glm::vec4 p{
+            camera.positionHyp.x,camera.positionHyp.y, camera.positionHyp.z,camera.positionHyp.w
+        };
+
+        std::cout
+            << "isInH3: " << Math::isH3Point(p) 
+            << " hypCamPos = {" <<
+            p.x << ", " <<
+            p.y << ", " <<
+            p.z << ", " <<
+            p.w << "}\n";
 
         /// update
         tick++;
