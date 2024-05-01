@@ -261,8 +261,8 @@ PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, cons
 
 	float totalDistanceTraveled = 0.0;
 	const int MAX_NUM_STEPS = 8;
-	const float MIN_HIT_DISTANCE = .1;
-	const float MAX_TRACE_DISTANCE = 10e35;	// max float value on order of 10e38
+	const float MIN_HIT_DISTANCE = .01;
+	const float MAX_TRACE_DISTANCE = 20;	// max float value on order of 10e38
 
 	// translate camera position from euclidean to hyperbolic (translated to hyperboloid)
 	//glm::vec4 hypPos{ Math::constructHyperboloidPoint(
@@ -316,13 +316,18 @@ PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, cons
 
 	for (int i = 0; i < MAX_NUM_STEPS; ++i)
 	{
+		if (!Math::isH3Point(marchPos) || !Math::isH3Dir(marchPos, marchDir))
+		{
+			hyperbolicErrorAcc++;
+		}
+
 		
 		if (isDebugRay)
 		{
 			if (!Math::isH3Point(marchPos))
-				std::cout << "ray not in h3 (step: " << i << "\n)";
+				std::cout << "ray not in h3 (step: " << i << ")\n";
 			if (!Math::isH3Dir(marchPos, marchDir))
-				std::cout << "raydir not in h3 (step: " << i << "\n)";
+				std::cout << "raydir not in h3 (step: " << i << ")\n";
 
 			{
 				//std::cout << "ray not in h3 (step: " << i << "\n)";
@@ -395,8 +400,8 @@ PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, cons
 				
 				marchPos = Math::correctH3Point(newMarch.first);
 				//marchPos = newMarch.first;
-				marchDir = Math::hypNormalize(newMarch.second);
-				marchDir = Math::hypDirection(marchPos, newMarch.second);
+				//marchDir = Math::hypNormalize(newMarch.second);
+				//marchDir = Math::hypDirection(marchPos, newMarch.second);
 				marchDir = Math::correctDirection(marchPos, newMarch.second);
 				totalDistanceTraveled += ss;
 				dist -= ss;

@@ -127,14 +127,14 @@ int main()
 
     /// create scene
     // snowman
-    if (false)
+    if (true)
     {
         Geometry snowmanObject;    // scene will have one object
 
         // create geometry of primitives
         Sphere head;
         head.position = { 0.f, 1.f, 0.f };
-        head.radius = 1;
+        head.radius = 1.2;
 
         Sphere middle;
         middle.position = { 0.f, 0.f, 0.f };
@@ -142,7 +142,7 @@ int main()
 
         Sphere bottom;
         bottom.position = { 0.f, -1.1f, 0.f };
-        bottom.radius = 2;
+        bottom.radius = 1.8;
 
         // assign materials
         head.material = lightMat;
@@ -418,12 +418,21 @@ int main()
     hypCamPosW = 1.45051;
     camera.pitch = 0.0114693;
     camera.yaw = 5.42917;
+    
+    camera.positionHyp = { -1.31667, 0, 1.14894, 2.01338, };
+    hypCamPosX = -1.31667;
+    hypCamPosY = 0;
+    hypCamPosZ = 1.14894;
+    hypCamPosW = 2.01338;
+    camera.pitch = -0.0529838;
+    camera.yaw = 5.30612;
 
     camera.positionHyp = { 0,0,0,1 };
     hypCamPosX = 0;
     hypCamPosY = 0;
     hypCamPosZ = 0;
     hypCamPosW = 1;
+
 
     sf::Vector2i mPosPrev{ sf::Mouse::getPosition() };
     sf::Vector2i mPosCur{ sf::Mouse::getPosition() };
@@ -594,10 +603,25 @@ int main()
 
                 camera.positionHyp = Math::correctH3Point(camera.positionHyp);
 
+                // reset camera position if invalid
+                {
+                    const float x{ camera.positionHyp.x };
+                    const float y{ camera.positionHyp.y };
+                    const float z{ camera.positionHyp.z };
+                    const float w{ camera.positionHyp.w };
+                    if (
+                        std::isinf(x) || std::isnan(x) ||
+                        std::isinf(y) || std::isnan(y) ||
+                        std::isinf(z) || std::isnan(z) ||
+                        std::isinf(w) || std::isnan(w)
+                        )
+                        camera.positionHyp = { 0,0,0,1 };
+                }
                 hypCamPosX = camera.positionHyp.x;
                 hypCamPosY = camera.positionHyp.y;
                 hypCamPosZ = camera.positionHyp.z;
                 hypCamPosW = camera.positionHyp.w;
+
             }
 
             if (sf::Keyboard::isKeyPressed(CLOSE))
@@ -671,13 +695,22 @@ int main()
             camera.positionHyp.x,camera.positionHyp.y, camera.positionHyp.z,camera.positionHyp.w
         };
 
+
         std::cout
-            << "isInH3: " << Math::isH3Point(p) 
-            << " hypCamPos = {" <<
-            p.x << ", " <<
-            p.y << ", " <<
-            p.z << ", " <<
-            p.w << "}\n";
+            << "isInH3: " << Math::isH3Point(p)
+            << " hypCamPos = {"
+            << p.x << ", "
+            << p.y << ", "
+            << p.z << ", "
+            << p.w << "}\n";
+
+        //std::cout << "hyperbolic error: " << hyperbolicErrorAcc << '\n';
+
+            //<< " hypCamDir = {"
+            //<< p.x << ", "
+            //<< p.y << ", "
+            //<< p.z << ", "
+            //<< p.w << "}\n";
 
         /// update
         tick++;

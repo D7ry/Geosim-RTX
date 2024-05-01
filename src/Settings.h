@@ -26,6 +26,8 @@ inline float hypCamPosW;
 inline float prePitch{};
 inline float preYaw{};
 
+inline int hyperbolicErrorAcc{ 0 };
+
 inline constexpr bool DEBUG{ true && INTERACTIVE_MODE };
 inline constexpr bool PRINT_DEBUG_LIGHTING{ false && DEBUG };
 inline constexpr bool PRINT_DEBUG_MARCHING{ false && DEBUG };
