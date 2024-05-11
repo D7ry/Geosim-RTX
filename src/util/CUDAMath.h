@@ -5,6 +5,51 @@
 namespace CUDAMath
 {
 
+__device__ float hypDot(const glm::vec4& u, const glm::vec4& v)
+{
+	return (u.x * v.x) + (u.y * v.y) + (u.z * v.z) - (u.w * v.w); // Lorentz Dot
+}
+
+__device__ float hypNorm(const glm::vec4& v)
+{
+	return glm::sqrt(glm::abs(hypDot(v, v)));
+}
+
+__device__ glm::vec4 hypNormalize(const glm::vec4& u)
+{
+	return u / hypNorm(u);
+}
+
+__device__ glm::vec4 correctDirection(const glm::vec4& p, const glm::vec4& d)
+{
+	// Construct an orthonormal basis for the tangent space at p
+	float x = p.x;
+	float y = p.y;
+	float z = p.z;
+	float w = p.w;
+
+	glm::vec4 basisX = glm::vec4(w, 0, 0, x);
+	glm::vec4 basisY = glm::vec4(0, w, 0, y);
+	glm::vec4 basisZ = glm::vec4(0, 0, w, z);
+
+	// Express the local direction in terms of the tangent space basis
+	float dx = d.x;
+	float dy = d.y;
+	float dz = d.z;
+
+	glm::vec4 rayDir = dx * basisX + dy * basisY + dz * basisZ;
+	rayDir = hypNormalize(rayDir);
+
+	return rayDir;
+}
+__device__ glm::vec4 constructHyperboloidPoint(const glm::vec3& direction, float distance)
+{
+	const float w{ cosh(distance) };
+	const float magSquared = w * w - 1;
+	const glm::vec3 d{ sqrtf(magSquared) * glm::normalize(direction) };
+	return glm::vec4{ d, w };
+}
+
 __device__ glm::vec3 lerp(float t, const glm::vec3& a, const glm::vec3& b)
 {
 	t = glm::clamp(t, 0.f, 1.f);
@@ -26,6 +71,30 @@ __device__ float3 randomVec3(unsigned state) {
     return make_float3(
         rng(state << 0), rng(state + 1 << 1), rng(state + 2 << 2)
     );
+}
+
+__device__ 
+bool withinError(double approx, double expected, double tolerance)
+{
+	return glm::abs(approx - expected) < tolerance;
+}
+__device__ 
+bool isH3Point(const glm::vec4& v)
+{
+	static constexpr float EPS{ 0.001 };
+
+	const bool positiveW{ v.w > 0 };
+	const bool constCurvature{ withinError(hypDot(v,v), -1, EPS) };
+	
+	return positiveW && constCurvature;
+}
+
+__device__
+bool isH3Dir(const glm::vec4& p, const glm::vec4& dir)
+{
+	const bool isDirection{ withinError(hypDot(dir, dir), 1, 0.001) };
+	const bool isTangentVector{ withinError(hypDot(dir, p), 0, 0.001) };
+	return isDirection && isTangentVector;
 }
 
 } // namespace CUDAMath

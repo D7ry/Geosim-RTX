@@ -10,355 +10,337 @@
 
 #include "Settings.h"
 
-void Renderer::render(const Scene& scene, const Camera& camera, Image& image)
-{
-	if (frameBuffer.size() != image.pixels.size())
-	{
-		frameBuffer.clear();
-		frameBuffer.resize(image.pixels.size());
-	}
+void Renderer::render(const Scene& scene, const Camera& camera, Image& image) {
+    if (frameBuffer.size() != image.pixels.size()) {
+        frameBuffer.clear();
+        frameBuffer.resize(image.pixels.size());
+    }
 
-	aspectRatio = (float)image.width / image.height;	// w : h
+    aspectRatio = (float)image.width / image.height; // w : h
 
-	// todo figure out why FOV seems "off"
-	float fovComponent{ tanf(camera.FOV / 2.f) };
+    // todo figure out why FOV seems "off"
+    float fovComponent{tanf(camera.FOV / 2.f)};
 
-	for (int y = 0; y < image.height; ++y)
-		for (int x = 0; x < image.width; ++x)
-	{
-			const int index = x + (y * image.width);
+    for (int y = 0; y < image.height; ++y)
+        for (int x = 0; x < image.width; ++x) {
+            const int index = x + (y * image.width);
 
-			// misc debug stuff
-			const glm::uvec2 debugRay{ image.width / 2, image.height / 2 };
-			isDebugRay = (x == debugRay.x && y == debugRay.y);
-			
-			if constexpr (!INTERACTIVE_MODE)
-			{
-				const unsigned index{ x + (y * image.width) };
-				const unsigned numPixels{ image.width * image.height };
+            // misc debug stuff
+            const glm::uvec2 debugRay{image.width / 2, image.height / 2};
+            isDebugRay = (x == debugRay.x && y == debugRay.y);
 
-				const float completionPercent{ 100.f * index / numPixels };
+            if constexpr (!INTERACTIVE_MODE) {
+                const unsigned index{x + (y * image.width)};
+                const unsigned numPixels{image.width * image.height};
 
-				// how many pixels per print
-				constexpr unsigned printFreq{ 50 };
+                const float completionPercent{100.f * index / numPixels};
 
-				static int prevPrintIndex{ 0 };
+                // how many pixels per print
+                constexpr unsigned printFreq{50};
 
-				if (index > prevPrintIndex + printFreq)
-				{
-					prevPrintIndex = index;
-					std::cout << completionPercent << "%\n";
-				}
-			}
+                static int prevPrintIndex{0};
 
-			// ray tracing stuff
-			const glm::vec2 ndc
-			{
-				(x + 0.5f) / image.width,
-				(y + 0.5f) / image.height
-			};
+                if (index > prevPrintIndex + printFreq) {
+                    prevPrintIndex = index;
+                    std::cout << completionPercent << "%\n";
+                }
+            }
 
-			glm::vec3 color{ 0.f };
+            // ray tracing stuff
+            const glm::vec2 ndc{
+                (x + 0.5f) / image.width, (y + 0.5f) / image.height
+            };
 
-			for (int i = 0; i < RAYS_PER_PIXEL; ++i)
-			{
-				glm::vec2 rayOffset = Math::randomVec2(rngSeed + i);
+            glm::vec3 color{0.f};
 
-				const glm::vec2 ndcAliased
-				{
-					(x + rayOffset.x) / image.width,
-					(y + rayOffset.y) / image.height
-				};
+            for (int i = 0; i < RAYS_PER_PIXEL; ++i) {
+                glm::vec2 rayOffset = Math::randomVec2(rngSeed + i);
 
-				// screen space
-				glm::vec2 coord;
+                const glm::vec2 ndcAliased{
+                    (x + rayOffset.x) / image.width,
+                    (y + rayOffset.y) / image.height
+                };
 
-				if constexpr (ANTIALIAS)
-				{
-					coord = glm::vec2{
-						((2.f * ndcAliased.x) - 1.f) * fovComponent * aspectRatio,
-						1.f - (2.f * ndcAliased.y) * fovComponent		// flip vertically so +y is up
-					};
-				}
-				else
-				{
-					coord = glm::vec2{
-						((2.f * ndc.x) - 1.f) * fovComponent * aspectRatio,
-						1.f - (2.f * ndc.y) * fovComponent		// flip vertically so +y is up
-					};
-				}
+                // screen space
+                glm::vec2 coord;
 
-				// ray coords in world space
-				glm::vec4 start{ camera.position, 1.f };
-				glm::vec4 dir{ coord.x, coord.y, -1.f, 0 };
+                if constexpr (ANTIALIAS) {
+                    coord = glm::vec2{
+                        ((2.f * ndcAliased.x) - 1.f) * fovComponent
+                            * aspectRatio,
+                        1.f
+                            - (2.f * ndcAliased.y)
+                                  * fovComponent // flip vertically so +y is up
+                    };
+                } else {
+                    coord = glm::vec2{
+                        ((2.f * ndc.x) - 1.f) * fovComponent * aspectRatio,
+                        1.f
+                            - (2.f * ndc.y)
+                                  * fovComponent // flip vertically so +y is up
+                    };
+                }
 
-				// transform ray to view space
-				dir = glm::normalize(dir);
-				dir = dir * camera.viewMat;
+                // ray coords in world space
+                glm::vec4 start{camera.position, 1.f};
+                glm::vec4 dir{coord.x, coord.y, -1.f, 0};
 
-				Ray ray{
-					start,
-					dir
-				};
+                // transform ray to view space
+                dir = glm::normalize(dir);
+                dir = dir * camera.viewMat;
 
-				if (!accumulate)
-					resetAccumulator();
+                Ray ray{start, dir};
 
-				//isDebugRay = index == 3846;
-				
-				color += traceRay(ray, scene);
+                if (!accumulate)
+                    resetAccumulator();
 
-				frameBuffer[index] += color;
-			}
+                // isDebugRay = index == 3846;
 
-			glm::vec3 pixelColor{ frameBuffer[index] };
+                color += traceRay(ray, scene);
 
-			// average color
-			pixelColor /= samplesPerPixel * RAYS_PER_PIXEL;
+                frameBuffer[index] += color;
+            }
 
-			// normalize color
-			pixelColor.r = std::clamp(pixelColor.r, 0.f, 1.f);
-			pixelColor.g = std::clamp(pixelColor.g, 0.f, 1.f);
-			pixelColor.b = std::clamp(pixelColor.b, 0.f, 1.f);
+            glm::vec3 pixelColor{frameBuffer[index]};
 
-			// debug visualization
-			const bool shouldInvertColor{
-				VISUALIZE_DEBUG_RAY  && (
-				(x == debugRay.x + 1 && y == debugRay.y + 0)  ||	// left
-				(x == debugRay.x - 1 && y == debugRay.y - 0)  ||	// right
-				(x == debugRay.x + 0 && y == debugRay.y + 1)  ||	// top
-				(x == debugRay.x - 0 && y == debugRay.y - 1))		// bottom
-			};
+            // average color
+            pixelColor /= samplesPerPixel * RAYS_PER_PIXEL;
 
-			if (shouldInvertColor)
-				pixelColor = glm::vec3{ 1 } - pixelColor;
+            // normalize color
+            pixelColor.r = std::clamp(pixelColor.r, 0.f, 1.f);
+            pixelColor.g = std::clamp(pixelColor.g, 0.f, 1.f);
+            pixelColor.b = std::clamp(pixelColor.b, 0.f, 1.f);
 
-			// actually setting pixel
-			image.setPixel(ndc, pixelColor);
-		}
+            // debug visualization
+            const bool shouldInvertColor{
+                VISUALIZE_DEBUG_RAY
+                && ((x == debugRay.x + 1 && y == debugRay.y + 0) || // left
+                    (x == debugRay.x - 1 && y == debugRay.y - 0) || // right
+                    (x == debugRay.x + 0 && y == debugRay.y + 1) || // top
+                    (x == debugRay.x - 0 && y == debugRay.y - 1))   // bottom
+            };
 
-	samplesPerPixel++;
+            if (shouldInvertColor)
+                pixelColor = glm::vec3{1} - pixelColor;
+
+            // actually setting pixel
+            image.setPixel(ndc, pixelColor);
+        }
+
+    samplesPerPixel++;
 }
 
-void Renderer::resetAccumulator()
-{
-	std::fill(frameBuffer.begin(), frameBuffer.end(), glm::vec3{ 0 });
-	samplesPerPixel = 1;
+void Renderer::resetAccumulator() {
+    std::fill(frameBuffer.begin(), frameBuffer.end(), glm::vec3{0});
+    samplesPerPixel = 1;
 }
 
-glm::vec3 Renderer::traceRay(Ray ray, const Scene& scene)
-{
-	std::vector<Intersection> hits;
+glm::vec3 Renderer::traceRay(Ray ray, const Scene& scene) {
+    std::vector<Intersection> hits;
 
-	for (int i = 0; i <= MAX_NUM_BOUNCES; ++i)
-	{
-		auto potentialIntersection{
-			RAY_MARCH ?
-				getClosestIntersectionMarch(ray, scene)
-			:	// else
-				getClosestIntersection(ray, scene)
-		};	
-		const bool rayHit{ potentialIntersection.has_value() };
+    for (int i = 0; i <= MAX_NUM_BOUNCES; ++i) {
+        auto potentialIntersection{
+            RAY_MARCH ? getClosestIntersectionMarch(ray, scene) : // else
+                getClosestIntersection(ray, scene)
+        };
+        const bool rayHit{potentialIntersection.has_value()};
 
-		if (rayHit)
-		{
-			rngSeed++;
+        if (rayHit) {
+            rngSeed++;
 
-			const Intersection& hit{ potentialIntersection.value() };
+            const Intersection& hit{potentialIntersection.value()};
 
-			if (RENDER_NORMALS || RENDER_WITH_POTATO_SETTINGS)
-				return (hit.normal/2.f) + .5f;
+            if (RENDER_NORMALS || RENDER_WITH_POTATO_SETTINGS)
+                return (hit.normal / 2.f) + .5f;
 
-			// record intersection
-			hits.push_back(hit);
+            // record intersection
+            hits.push_back(hit);
 
-			// redirect ray at point of intersection
-			ray = Ray{ hit.position + (hit.outgoingDir * 0.02f), hit.outgoingDir };
-		}
-		else
-			break;
-	}
+            // redirect ray at point of intersection
+            ray = Ray{
+                hit.position + (hit.outgoingDir * 0.02f), hit.outgoingDir
+            };
+        } else
+            break;
+    }
 
-	if (PRINT_DEBUG_LIGHTING && isDebugRay)
-	{
-		debugRayCast(ray, hits);
-		debugLightPath(ray, hits);
-	}
-	const glm::vec3 finalColor{ evaluateLightPath(ray, hits) };
+    if (PRINT_DEBUG_LIGHTING && isDebugRay) {
+        debugRayCast(ray, hits);
+        debugLightPath(ray, hits);
+    }
+    const glm::vec3 finalColor{evaluateLightPath(ray, hits)};
 
-	return finalColor;
+    return finalColor;
 }
 
-glm::vec3 Renderer::evaluateLightPath(const Ray& primary, const std::vector<Intersection>& hits)
-{
-	glm::vec3 incomingLight{ 0 };
+glm::vec3 Renderer::evaluateLightPath(
+    const Ray& primary,
+    const std::vector<Intersection>& hits
+) {
+    glm::vec3 incomingLight{0};
 
-	// if ray bounced off a surface and never hit anything after
-	const bool reachedEnvironment{ hits.size() < MAX_NUM_BOUNCES };
+    // if ray bounced off a surface and never hit anything after
+    const bool reachedEnvironment{hits.size() < MAX_NUM_BOUNCES};
 
-	// if primary ray hits nothing, use that as environment bound vector
-	const glm::vec3 environmentDir{ hits.empty() ? primary.dir : hits.back().outgoingDir };
+    // if primary ray hits nothing, use that as environment bound vector
+    const glm::vec3 environmentDir{
+        hits.empty() ? primary.dir : hits.back().outgoingDir
+    };
 
-	if (reachedEnvironment)
-		incomingLight += environmentalLight(environmentDir);
+    if (reachedEnvironment)
+        incomingLight += environmentalLight(environmentDir);
 
-	// reverse iterate from the start of a path of light
-	for (int i = hits.size()-1; i >= 0; i--)
-	{
-		const Intersection& hit{ hits[i] };
+    // reverse iterate from the start of a path of light
+    for (int i = hits.size() - 1; i >= 0; i--) {
+        const Intersection& hit{hits[i]};
 
-		// light emitted from hit surface
-		const glm::vec3 emittedLight{ 
-			hit.material.emissionColor * hit.material.emissionStrength 
-		};
+        // light emitted from hit surface
+        const glm::vec3 emittedLight{
+            hit.material.emissionColor * hit.material.emissionStrength
+        };
 
-		// cos(theta) term
-		const float lightStrength{
-			1//glm::max(0.f, glm::dot(hit.normal, -hit.incidentDir))
-		};
+        // cos(theta) term
+        const float lightStrength{
+            1 // glm::max(0.f, glm::dot(hit.normal, -hit.incidentDir))
+        };
 
-		// basically the rendering equation
-		//incomingLight = emittedLight + (2.f * Math::BRDF(hit) * incomingLight * lightStrength);
-		incomingLight = emittedLight + (hit.material.albedo * incomingLight * lightStrength);
-	}
+        // basically the rendering equation
+        // incomingLight = emittedLight + (2.f * Math::BRDF(hit) * incomingLight
+        // * lightStrength);
+        incomingLight = emittedLight
+                        + (hit.material.albedo * incomingLight * lightStrength);
+    }
 
-	return incomingLight;
+    return incomingLight;
 }
 
-PotentialIntersection Renderer::getClosestIntersection(const Ray& ray, const Scene& scene)
-{
-	std::unique_ptr<Intersection> closestHit;
+PotentialIntersection Renderer::getClosestIntersection(
+    const Ray& ray,
+    const Scene& scene
+) {
+    std::unique_ptr<Intersection> closestHit;
 
-	for (const Geometry& object : scene.geometry)
-		for (const auto& primitivePtr : object.primitives)
-		{
-			const Primitive& primitive = *primitivePtr.get();
+    for (const Geometry& object : scene.geometry)
+        for (const auto& primitivePtr : object.primitives) {
+            const Primitive& primitive = *primitivePtr.get();
 
-			const auto hitCheck = primitive.checkRayIntersection(ray, object.position);
+            const auto hitCheck
+                = primitive.checkRayIntersection(ray, object.position);
 
-			if (hitCheck.has_value())
-			{
-				const Intersection& hit{ hitCheck.value() };
+            if (hitCheck.has_value()) {
+                const Intersection& hit{hitCheck.value()};
 
-				// replace closest hit if it is null or closer
-				if (!closestHit || hit.math.t < closestHit->math.t)
-					closestHit = std::make_unique<Intersection>(hit);
-			}
-		}
+                // replace closest hit if it is null or closer
+                if (!closestHit || hit.math.t < closestHit->math.t)
+                    closestHit = std::make_unique<Intersection>(hit);
+            }
+        }
 
-	if (closestHit)
-		return *closestHit.get();
+    if (closestHit)
+        return *closestHit.get();
 
-	return std::nullopt;
+    return std::nullopt;
 }
 
-PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, const Scene& scene)
-{
-	std::unique_ptr<Intersection> closestHit;
+PotentialIntersection Renderer::getClosestIntersectionMarch(
+    const Ray& ray,
+    const Scene& scene
+) {
+    std::unique_ptr<Intersection> closestHit;
 
-	//if (isDebugRay)
-	//	std::cout << "here!\n";
+    // if (isDebugRay)
+    //	std::cout << "here!\n";
 
-	float totalDistanceTraveled = 0.0;
-	const int MAX_NUM_STEPS = 8;
-	const float MIN_HIT_DISTANCE = .01;
-	const float MAX_TRACE_DISTANCE = 20;	// max float value on order of 10e38
+    float totalDistanceTraveled = 0.0;
+    const int MAX_NUM_STEPS = 8;
+    const float MIN_HIT_DISTANCE = .01;
+    const float MAX_TRACE_DISTANCE = 20; // max float value on order of 10e38
 
-	// translate camera position from euclidean to hyperbolic (translated to hyperboloid)
-	//glm::vec4 hypPos{ Math::constructHyperboloidPoint(
-	//	ray.origin,
-	//	glm::length(ray.origin)
-	//)};
+    // translate camera position from euclidean to hyperbolic (translated to
+    // hyperboloid)
+    // glm::vec4 hypPos{ Math::constructHyperboloidPoint(
+    //	ray.origin,
+    //	glm::length(ray.origin)
+    //)};
 
+    auto toStr = [](const glm::vec4& v) {
+        // takes float and returns string to 3 decimals
+        auto helper = [](float f) {
+            std::string s = std::to_string(f);
+            return s.substr(0, s.find(".") + 4);
+        };
 
+        return std::string{
+            "(" + helper(v.x) + ", " + helper(v.y) + ", " + helper(v.z) + ", "
+            + helper(v.w) + ")"
+        };
+    };
 
-	auto toStr = [](const glm::vec4& v)
-	{
-		// takes float and returns string to 3 decimals
-		auto helper = [](float f)
-		{
-			std::string s = std::to_string(f);
-			return s.substr(0, s.find(".") + 4);
-		};
+    const glm::vec4 p{hypCamPosX, hypCamPosY, hypCamPosZ, hypCamPosW};
 
-		return std::string{ 
-			"(" + helper(v.x) + ", " 
-			+ helper(v.y) + ", " 
-			+ helper(v.z) + ", " 
-			+ helper(v.w) + ")" 
-		};
-	};
-	
-	const glm::vec4 p{ hypCamPosX, hypCamPosY, hypCamPosZ, hypCamPosW };
+    // generate direction then transform to hyperboloid
+    const glm::vec4 hyperbolicPos{
+        p // Math::correctH3Point(p)
+    };
 
-	// generate direction then transform to hyperboloid
-	const glm::vec4 hyperbolicPos{
-		p//Math::correctH3Point(p)
-	};
+    const glm::vec4 d{ray.dir, 0};
 
-	const glm::vec4 d{ ray.dir, 0 };
+    const glm::vec4 hyperbolicDir{Math::correctDirection(p, d)};
 
-	const glm::vec4 hyperbolicDir{
-		Math::correctDirection(p,d)
-	};
+    glm::vec4 marchPos{hyperbolicPos};
+    glm::vec4 marchDir{hyperbolicDir};
 
-	glm::vec4 marchPos{ hyperbolicPos };
-	glm::vec4 marchDir{ hyperbolicDir };
+    // if (isDebugRay && PRINT_DEBUG_MARCHING && !EUCLIDEAN)
+    //	std::cout << "Starting March!\n";
 
-	//if (isDebugRay && PRINT_DEBUG_MARCHING && !EUCLIDEAN)
-	//	std::cout << "Starting March!\n";
+    if (isDebugRay && LOG_MARCH_PATH) {
+        rayMarchPathPositions.clear();
+        rayMarchPathDirections.clear();
+    }
 
-	if (isDebugRay && LOG_MARCH_PATH)
-	{
-		rayMarchPathPositions.clear();
-		rayMarchPathDirections.clear();
-	}
+    for (int i = 0; i < MAX_NUM_STEPS; ++i) {
+        if (!Math::isH3Point(marchPos) || !Math::isH3Dir(marchPos, marchDir)) {
+            hyperbolicErrorAcc++;
+        }
 
-	for (int i = 0; i < MAX_NUM_STEPS; ++i)
-	{
-		if (!Math::isH3Point(marchPos) || !Math::isH3Dir(marchPos, marchDir))
-		{
-			hyperbolicErrorAcc++;
-		}
+        if (isDebugRay) {
+            if (!Math::isH3Point(marchPos))
+                std::cout << "ray not in h3 (step: " << i << ")\n";
+            if (!Math::isH3Dir(marchPos, marchDir))
+                std::cout << "raydir not in h3 (step: " << i << ")\n";
 
-		
-		if (isDebugRay)
-		{
-			if (!Math::isH3Point(marchPos))
-				std::cout << "ray not in h3 (step: " << i << ")\n";
-			if (!Math::isH3Dir(marchPos, marchDir))
-				std::cout << "raydir not in h3 (step: " << i << ")\n";
+            {
+                // std::cout << "ray not in h3 (step: " << i << "\n)";
+                // Math::printH3Point("p", marchPos);
+                // Math::printH3Dir("d", marchPos, marchDir);
 
-			{
-				//std::cout << "ray not in h3 (step: " << i << "\n)";
-				//Math::printH3Point("p", marchPos);
-				//Math::printH3Dir("d", marchPos, marchDir);
-				
-				//std::cout << "bad step\npos: " << toStr(marchPos)
-				//	<< ", dot: " << Math::hypDot(marchPos, marchPos) 
-				//	<< "\ndir: " << toStr(marchDir)
-				//	<< ", dot: " << Math::hypDot(marchDir, marchDir) << '\n';
-			}
-		}
+                // std::cout << "bad step\npos: " << toStr(marchPos)
+                //	<< ", dot: " << Math::hypDot(marchPos, marchPos)
+                //	<< "\ndir: " << toStr(marchDir)
+                //	<< ", dot: " << Math::hypDot(marchDir, marchDir) <<
+                //'\n';
+            }
+        }
 
-		const auto closest = getClosestPrimitive(marchPos, scene);
+        const auto closest = getClosestPrimitive(marchPos, scene);
 
-		double dist = closest.first;
+        double dist = closest.first;
 
-		// we hit something
-		if (dist < MIN_HIT_DISTANCE)
-		{
-			const Primitive& primitive = closest.second;
-			glm::vec3 normal = primitive.material.get()->albedo; // for rough quick rendering/debugging
+        // we hit something
+        if (dist < MIN_HIT_DISTANCE) {
+            const Primitive& primitive = closest.second;
+            glm::vec3 normal
+                = primitive.material.get()
+                      ->albedo; // for rough quick rendering/debugging
 
-			if (!RENDER_WITH_POTATO_SETTINGS)
-				normal = computeNormal(marchPos, scene);
-			
-			RayIntersection rayIntersection{ ray, -1, marchPos, normal };
-			Intersection i{ *primitive.material.get(), rayIntersection };
+            if (!RENDER_WITH_POTATO_SETTINGS)
+                normal = computeNormal(marchPos, scene);
 
-			closestHit = std::make_unique<Intersection>(i);
-		}
+            RayIntersection rayIntersection{ray, -1, marchPos, normal};
+            Intersection i{*primitive.material.get(), rayIntersection};
+
+            closestHit = std::make_unique<Intersection>(i);
+        }
 		else if (
 				!Math::isH3Point(marchPos) ||
 				!Math::isH3Dir(marchPos, marchDir) ||
@@ -367,118 +349,109 @@ PotentialIntersection Renderer::getClosestIntersectionMarch(const Ray& ray, cons
 				std::isnan(marchDir.x)
 			)
 		{
-			if (isDebugRay && PRINT_DEBUG_MARCHING)
-				std::cout << "toofar, termininat, dist = " << dist << '\n';
-			break;
-		}
-		else
-		{
-			const float ss{ (float)dist / 1 };	// substep size
-			while (dist > 0)
-			{
-				auto newMarch = march(marchPos, marchDir, ss);
+            if (isDebugRay && PRINT_DEBUG_MARCHING)
+                std::cout << "toofar, termininat, dist = " << dist << '\n';
+            break;
+        } else {
+            const float ss{(float)dist / 1}; // substep size
+            while (dist > 0) {
+                auto newMarch = march(marchPos, marchDir, ss);
 
-				if (isDebugRay && LOG_MARCH_PATH)
-				{
-					if (rayMarchPathDirections.empty())
-						rayMarchPathDirections.emplace_back(marchDir);
-					if (rayMarchPathPositions.empty())
-						rayMarchPathPositions.emplace_back(marchPos);
+                if (isDebugRay && LOG_MARCH_PATH) {
+                    if (rayMarchPathDirections.empty())
+                        rayMarchPathDirections.emplace_back(marchDir);
+                    if (rayMarchPathPositions.empty())
+                        rayMarchPathPositions.emplace_back(marchPos);
 
-					rayMarchPathPositions.emplace_back(newMarch.first);
-					rayMarchPathDirections.emplace_back(newMarch.second);
-				}
+                    rayMarchPathPositions.emplace_back(newMarch.first);
+                    rayMarchPathDirections.emplace_back(newMarch.second);
+                }
 
-				if (isDebugRay && PRINT_DEBUG_MARCHING && !EUCLIDEAN)
-				{
-					//std::cout << "Step size: " << dist
-					//	<< ", sub step size: " << ss
-					//	<< "\npos: " << toStr(marchPos) << " => " << toStr(newMarch.first)
-					//	<< "\ndir: " << toStr(marchDir) << " => " << toStr(newMarch.second)
-					//	<< '\n';
-				}
-				
-				marchPos = Math::correctH3Point(newMarch.first);
-				//marchPos = newMarch.first;
-				//marchDir = Math::hypNormalize(newMarch.second);
-				//marchDir = Math::hypDirection(marchPos, newMarch.second);
-				marchDir = Math::correctDirection(marchPos, newMarch.second);
-				totalDistanceTraveled += ss;
-				dist -= ss;
-			}
-		}
-	}
+                if (isDebugRay && PRINT_DEBUG_MARCHING && !EUCLIDEAN) {
+                    // std::cout << "Step size: " << dist
+                    //	<< ", sub step size: " << ss
+                    //	<< "\npos: " << toStr(marchPos) << " => " <<
+                    //toStr(newMarch.first)
+                    //	<< "\ndir: " << toStr(marchDir) << " => " <<
+                    //toStr(newMarch.second)
+                    //	<< '\n';
+                }
 
-	//if (isDebugRay && PRINT_DEBUG_MARCHING && !EUCLIDEAN)
-	//	std::cout << "total distance traveled: " << totalDistanceTraveled << '\n';
+                marchPos = Math::correctH3Point(newMarch.first);
+                // marchPos = newMarch.first;
+                // marchDir = Math::hypNormalize(newMarch.second);
+                // marchDir = Math::hypDirection(marchPos, newMarch.second);
+                marchDir = Math::correctDirection(marchPos, newMarch.second);
+                totalDistanceTraveled += ss;
+                dist -= ss;
+            }
+        }
+    }
 
-	if (isDebugRay && LOG_MARCH_PATH)
-	{
-		std::cout << "\nMarch Path:\nPositions:\n{\n";
-		for (const auto p : rayMarchPathPositions)
-			std::cout << toStr(p) << ",\n";
+    // if (isDebugRay && PRINT_DEBUG_MARCHING && !EUCLIDEAN)
+    //	std::cout << "total distance traveled: " << totalDistanceTraveled <<
+    //'\n';
 
-		std::cout << "}\n\nDirections:\n{\n";
-		for (const auto d : rayMarchPathDirections)
-			std::cout << toStr(d) << ",\n";
-		std::cout << "}\n";
-	}
+    if (isDebugRay && LOG_MARCH_PATH) {
+        std::cout << "\nMarch Path:\nPositions:\n{\n";
+        for (const auto p : rayMarchPathPositions)
+            std::cout << toStr(p) << ",\n";
 
-	if (closestHit)
-		return *closestHit.get();
+        std::cout << "}\n\nDirections:\n{\n";
+        for (const auto d : rayMarchPathDirections)
+            std::cout << toStr(d) << ",\n";
+        std::cout << "}\n";
+    }
 
-	return std::nullopt;
+    if (closestHit)
+        return *closestHit.get();
+
+    return std::nullopt;
 }
 
-std::pair<double, const Primitive&> Renderer::getClosestPrimitive(const glm::vec4& p, const Scene& scene)
-{
-	double minDistance{ 100000000 };
-	const Primitive* minDistancePrimitive{ nullptr };
-	for (const Geometry& object : scene.geometry)
-	{
-		const glm::vec4 objHypPos{ Math::constructHyperboloidPoint(
-			object.position,
-			glm::length(object.position)
-		) };
+std::pair<double, const Primitive&> Renderer::getClosestPrimitive(
+    const glm::vec4& p,
+    const Scene& scene
+) {
+    double minDistance{100000000};
+    const Primitive* minDistancePrimitive{nullptr};
+    for (const Geometry& object : scene.geometry) {
+        const glm::vec4 objHypPos{Math::constructHyperboloidPoint(
+            object.position, glm::length(object.position)
+        )};
 
-		for (const auto& primitivePtr : object.primitives)
-		{
-			const Primitive& primitive = *primitivePtr.get();
-			const double d = primitive.SDF(p, objHypPos);
-			if (d < minDistance)
-			{
-				minDistance = std::min(minDistance, d);
-				minDistancePrimitive = &primitive;
-			}
-		}
-	}
+        for (const auto& primitivePtr : object.primitives) {
+            const Primitive& primitive = *primitivePtr.get();
+            const double d = primitive.SDF(p, objHypPos);
+            if (d < minDistance) {
+                minDistance = std::min(minDistance, d);
+                minDistancePrimitive = &primitive;
+            }
+        }
+    }
 
-	//if (minDistancePrimitive == nullptr)
-	//	std::cout << "brb, bouta crash\n";
+    // if (minDistancePrimitive == nullptr)
+    //	std::cout << "brb, bouta crash\n";
 
-	return { minDistance, *minDistancePrimitive };
+    return {minDistance, *minDistancePrimitive};
 }
 
-double Renderer::getClosestDistance(const glm::vec4& p, const Scene& scene)
-{
-	double minDistance{ 1000000 };
-	for (const Geometry& object : scene.geometry)
-	{
-		const glm::vec4 objHypPos{ Math::constructHyperboloidPoint(
-			object.position, 
-			glm::length(object.position)
-		)};
+double Renderer::getClosestDistance(const glm::vec4& p, const Scene& scene) {
+    double minDistance{1000000};
+    for (const Geometry& object : scene.geometry) {
+        const glm::vec4 objHypPos{Math::constructHyperboloidPoint(
+            object.position, glm::length(object.position)
+        )};
 
-		for (const auto& primitivePtr : object.primitives)
-		{
-			const Primitive& primitive = *primitivePtr.get();
-			const double d = primitive.SDF(p, objHypPos);
+        for (const auto& primitivePtr : object.primitives) {
+            const Primitive& primitive = *primitivePtr.get();
+            const double d = primitive.SDF(p, objHypPos);
 
-			minDistance = std::min(minDistance, d);
-		}
-	}
+            minDistance = std::min(minDistance, d);
+        }
+    }
 
-	return minDistance;
+    return minDistance;
 }
 
 // https://michaelwalczyk.com/blog-ray-marching.html
@@ -486,198 +459,222 @@ double Renderer::getClosestDistance(const glm::vec4& p, const Scene& scene)
 // Higher-Order Finite Differences
 // Precomputed Normals
 // Parallelization (duh)
-glm::vec3 Renderer::computeNormal(const glm::vec4& p, const Scene& scene)
-{
-	
-	if (EUCLIDEAN)
-	{
-		static constexpr float DELTA{ 0.001 };
-		static constexpr glm::vec4 DX{ DELTA, 0, 0, 0 };
-		static constexpr glm::vec4 DY{ 0, DELTA, 0, 0 };
-		static constexpr glm::vec4 DZ{ 0, 0, DELTA, 0 };
-		
-		float xGradient = getClosestDistance(p + DX, scene) - getClosestDistance(p - DX, scene);
-		float yGradient = getClosestDistance(p + DY, scene) - getClosestDistance(p - DY, scene);
-		float zGradient = getClosestDistance(p + DZ, scene) - getClosestDistance(p - DZ, scene);
-		
-		const glm::vec3 normal{ xGradient, yGradient, zGradient };
-		
-		return glm::normalize(normal);
-	}
-	else
-	{
-		static constexpr float EPSILON{ 0.001f };
+glm::vec3 Renderer::computeNormal(const glm::vec4& p, const Scene& scene) {
 
-		// hyperbolic normalization
-		// Compute basis vectors for the tangent hyperplane at p
-		glm::vec4 basis_x = Math::hypNormalize(glm::vec4(p.w, 0.0f, 0.0f, p.x));
-		glm::vec4 basis_y = glm::vec4(0.0f, p.w, 0.0f, p.y);
-		glm::vec4 basis_z = glm::vec4(0.0f, 0.0f, p.w, p.z);
-		
-		// Gram-Schmidt orthogonalization
-		basis_y = Math::hypNormalize(basis_y - Math::hypDot(basis_y, basis_x) * basis_x);
-		basis_z = Math::hypNormalize(basis_z - Math::hypDot(basis_z, basis_x) * basis_x - Math::hypDot(basis_z, basis_y) * basis_y);
-		
-		// Compute gradients using finite differences
-		float xGradient = getClosestDistance(p + EPSILON * basis_x, scene) - getClosestDistance(p - EPSILON * basis_x, scene);
-		float yGradient = getClosestDistance(p + EPSILON * basis_y, scene) - getClosestDistance(p - EPSILON * basis_y, scene);
-		float zGradient = getClosestDistance(p + EPSILON * basis_z, scene) - getClosestDistance(p - EPSILON * basis_z, scene);
-		
-		// Construct the normal vector
-		glm::vec4 normal = Math::hypNormalize(xGradient * basis_x + yGradient * basis_y + zGradient * basis_z);
-		
-		return normal;
+    if (EUCLIDEAN) {
+        static constexpr float DELTA{0.001};
+        static constexpr glm::vec4 DX{DELTA, 0, 0, 0};
+        static constexpr glm::vec4 DY{0, DELTA, 0, 0};
+        static constexpr glm::vec4 DZ{0, 0, DELTA, 0};
 
-		// euclidean normalization (incorrect but looks nicer)
-		// Compute basis vectors for the tangent hyperplane at p
-		//glm::vec4 basis_x = glm::normalize(glm::vec4(p.w, 0.0f, 0.0f, p.x));
-		//glm::vec4 basis_y = glm::vec4(0.0f, p.w, 0.0f, p.y);
-		//glm::vec4 basis_z = glm::vec4(0.0f, 0.0f, p.w, p.z);
-		//
-		//// Gram-Schmidt orthogonalization
-		//basis_y = glm::normalize(basis_y - Math::hypDot(basis_y, basis_x) * basis_x);
-		//basis_z = glm::normalize(basis_z - Math::hypDot(basis_z, basis_x) * basis_x - Math::hypDot(basis_z, basis_y) * basis_y);
-		//
-		//// Compute gradients using finite differences
-		//float xGradient = getClosestDistance(p + EPSILON * basis_x, scene) - getClosestDistance(p - EPSILON * basis_x, scene);
-		//float yGradient = getClosestDistance(p + EPSILON * basis_y, scene) - getClosestDistance(p - EPSILON * basis_y, scene);
-		//float zGradient = getClosestDistance(p + EPSILON * basis_z, scene) - getClosestDistance(p - EPSILON * basis_z, scene);
-		//
-		//// Construct the normal vector
-		//glm::vec4 normal = glm::normalize(xGradient * basis_x + yGradient * basis_y + zGradient * basis_z);
-		//
-		//return normal;
-	}
+        float xGradient = getClosestDistance(p + DX, scene)
+                          - getClosestDistance(p - DX, scene);
+        float yGradient = getClosestDistance(p + DY, scene)
+                          - getClosestDistance(p - DY, scene);
+        float zGradient = getClosestDistance(p + DZ, scene)
+                          - getClosestDistance(p - DZ, scene);
+
+        const glm::vec3 normal{xGradient, yGradient, zGradient};
+
+        return glm::normalize(normal);
+    } else {
+        static constexpr float EPSILON{0.001f};
+
+        // hyperbolic normalization
+        // Compute basis vectors for the tangent hyperplane at p
+        glm::vec4 basis_x = Math::hypNormalize(glm::vec4(p.w, 0.0f, 0.0f, p.x));
+        glm::vec4 basis_y = glm::vec4(0.0f, p.w, 0.0f, p.y);
+        glm::vec4 basis_z = glm::vec4(0.0f, 0.0f, p.w, p.z);
+
+        // Gram-Schmidt orthogonalization
+        basis_y = Math::hypNormalize(
+            basis_y - Math::hypDot(basis_y, basis_x) * basis_x
+        );
+        basis_z = Math::hypNormalize(
+            basis_z - Math::hypDot(basis_z, basis_x) * basis_x
+            - Math::hypDot(basis_z, basis_y) * basis_y
+        );
+
+        // Compute gradients using finite differences
+        float xGradient = getClosestDistance(p + EPSILON * basis_x, scene)
+                          - getClosestDistance(p - EPSILON * basis_x, scene);
+        float yGradient = getClosestDistance(p + EPSILON * basis_y, scene)
+                          - getClosestDistance(p - EPSILON * basis_y, scene);
+        float zGradient = getClosestDistance(p + EPSILON * basis_z, scene)
+                          - getClosestDistance(p - EPSILON * basis_z, scene);
+
+        // Construct the normal vector
+        glm::vec4 normal = Math::hypNormalize(
+            xGradient * basis_x + yGradient * basis_y + zGradient * basis_z
+        );
+
+        return normal;
+
+        // euclidean normalization (incorrect but looks nicer)
+        // Compute basis vectors for the tangent hyperplane at p
+        // glm::vec4 basis_x = glm::normalize(glm::vec4(p.w, 0.0f, 0.0f, p.x));
+        // glm::vec4 basis_y = glm::vec4(0.0f, p.w, 0.0f, p.y);
+        // glm::vec4 basis_z = glm::vec4(0.0f, 0.0f, p.w, p.z);
+        //
+        //// Gram-Schmidt orthogonalization
+        // basis_y = glm::normalize(basis_y - Math::hypDot(basis_y, basis_x) *
+        // basis_x); basis_z = glm::normalize(basis_z - Math::hypDot(basis_z,
+        // basis_x) * basis_x - Math::hypDot(basis_z, basis_y) * basis_y);
+        //
+        //// Compute gradients using finite differences
+        // float xGradient = getClosestDistance(p + EPSILON * basis_x, scene) -
+        // getClosestDistance(p - EPSILON * basis_x, scene); float yGradient =
+        // getClosestDistance(p + EPSILON * basis_y, scene) -
+        // getClosestDistance(p - EPSILON * basis_y, scene); float zGradient =
+        // getClosestDistance(p + EPSILON * basis_z, scene) -
+        // getClosestDistance(p - EPSILON * basis_z, scene);
+        //
+        //// Construct the normal vector
+        // glm::vec4 normal = glm::normalize(xGradient * basis_x + yGradient *
+        // basis_y + zGradient * basis_z);
+        //
+        // return normal;
+    }
 }
 
-glm::vec3 Renderer::environmentalLight(const glm::vec3& dir)
-{
-	const float dayTime{ globalTick / 128.f };
+glm::vec3 Renderer::environmentalLight(const glm::vec3& dir) {
+    const float dayTime{globalTick / 128.f};
 
-	//glm::vec3 lightDir{ sinf(dayTime), cosf(dayTime), 0 };
-	glm::vec3 lightDir{ 0, 1, 0 };
-	lightDir = glm::normalize(lightDir);
+    // glm::vec3 lightDir{ sinf(dayTime), cosf(dayTime), 0 };
+    glm::vec3 lightDir{0, 1, 0};
+    lightDir = glm::normalize(lightDir);
 
-	const glm::vec3 noonColor{ 1 };
-	const glm::vec3 sunsetColor{ 1,.6,.3 };
+    const glm::vec3 noonColor{1};
+    const glm::vec3 sunsetColor{1, .6, .3};
 
-	const float interpolation = std::max(0.f, glm::dot(lightDir, glm::vec3{ 0,1,0 }));
+    const float interpolation
+        = std::max(0.f, glm::dot(lightDir, glm::vec3{0, 1, 0}));
 
-	const glm::vec3 lightColor = Math::lerp(interpolation, sunsetColor, noonColor);
+    const glm::vec3 lightColor
+        = Math::lerp(interpolation, sunsetColor, noonColor);
 
-	glm::vec3 light{
-		std::max(0.f, glm::dot(lightDir, dir)) * lightColor
-	};
+    glm::vec3 light{std::max(0.f, glm::dot(lightDir, dir)) * lightColor};
 
-	return light;
+    return light;
 }
 
 std::pair<glm::vec4, glm::vec4> Renderer::march(
-	const glm::vec4& pos, 
-	const glm::vec4& dir, 
-	float dist
-)
-{
-	if (EUCLIDEAN)
-		return Math::geodesicFlowEuclidean(pos, dir, dist);
-	else
-		return Math::geodesicFlowHyperbolic(pos, dir, dist);
+    const glm::vec4& pos,
+    const glm::vec4& dir,
+    float dist
+) {
+    if (EUCLIDEAN)
+        return Math::geodesicFlowEuclidean(pos, dir, dist);
+    else
+        return Math::geodesicFlowHyperbolic(pos, dir, dist);
 }
 
-void Renderer::debugRayCast(const Ray& primary, std::vector<Intersection>& hits)
-{
-	auto toStr = [](const glm::vec3& v)
-	{
-		// takes float and returns string to 3 decimals
-		auto helper = [](float f)
-		{
-			std::string s = std::to_string(f);
-			return s.substr(0, s.find(".") + 4);
-		};
+void Renderer::debugRayCast(
+    const Ray& primary,
+    std::vector<Intersection>& hits
+) {
+    auto toStr = [](const glm::vec3& v) {
+        // takes float and returns string to 3 decimals
+        auto helper = [](float f) {
+            std::string s = std::to_string(f);
+            return s.substr(0, s.find(".") + 4);
+        };
 
-		return std::string{ "(" + helper(v.x) + ", " + helper(v.y) + ", " + helper(v.z) + ")" };
-	};
+        return std::string{
+            "(" + helper(v.x) + ", " + helper(v.y) + ", " + helper(v.z) + ")"
+        };
+    };
 
-	std::cout << "////////////////// RAY CAST START\n\n";
+    std::cout << "////////////////// RAY CAST START\n\n";
 
-	std::cout << "A primary ray, ray 0 is shot out of the camera at "
-		<< toStr(primary.origin) << " and looking at " << toStr(primary.dir) << "\n\n";
+    std::cout << "A primary ray, ray 0 is shot out of the camera at "
+              << toStr(primary.origin) << " and looking at "
+              << toStr(primary.dir) << "\n\n";
 
-	int i = 0;
-	for (; i < hits.size(); ++i)
-	{
-		const Intersection& hit{ hits[i] };
+    int i = 0;
+    for (; i < hits.size(); ++i) {
+        const Intersection& hit{hits[i]};
 
-		std::cout << "ray " << i << " goes out and hits a material: " << &hit.material
-			<< " at " << toStr(hit.position) << " (t=" << hit.math.t
-			<< ")\n and bounces off in the direction of " << toStr(hit.outgoingDir) << "\n\n";
-	}
+        std::cout << "ray " << i
+                  << " goes out and hits a material: " << &hit.material
+                  << " at " << toStr(hit.position) << " (t=" << hit.math.t
+                  << ")\n and bounces off in the direction of "
+                  << toStr(hit.outgoingDir) << "\n\n";
+    }
 
-	if (hits.size() == MAX_NUM_BOUNCES)
-		std::cout << "With that we reach the max number of bounces...\n\n";
-	else
-		std::cout << "and ray " << i << " goes off forever...\n\n\n";
+    if (hits.size() == MAX_NUM_BOUNCES)
+        std::cout << "With that we reach the max number of bounces...\n\n";
+    else
+        std::cout << "and ray " << i << " goes off forever...\n\n\n";
 }
 
-void Renderer::debugLightPath(const Ray& primary, std::vector<Intersection>& hits)
-{
-	auto toStr = [](const glm::vec3& v)
-	{
-		// takes float and returns string to 3 decimals
-		auto helper = [](float f)
-		{
-			std::string s = std::to_string(f);
-			return s.substr(0, s.find(".") + 4);
-		};
+void Renderer::debugLightPath(
+    const Ray& primary,
+    std::vector<Intersection>& hits
+) {
+    auto toStr = [](const glm::vec3& v) {
+        // takes float and returns string to 3 decimals
+        auto helper = [](float f) {
+            std::string s = std::to_string(f);
+            return s.substr(0, s.find(".") + 4);
+        };
 
-		return std::string{ "(" + helper(v.x) + ", " + helper(v.y) + ", " + helper(v.z) + ")" };
-	};
+        return std::string{
+            "(" + helper(v.x) + ", " + helper(v.y) + ", " + helper(v.z) + ")"
+        };
+    };
 
-	std::cout << "////////////////// LIGHT PATH START\n\n";
+    std::cout << "////////////////// LIGHT PATH START\n\n";
 
-	glm::vec3 incomingLight{ 0 };
-	const bool reachedEnvironment{ hits.size() < MAX_NUM_BOUNCES };
-	const glm::vec3 environmentDir{ hits.empty() ? primary.dir : hits.back().outgoingDir };
+    glm::vec3 incomingLight{0};
+    const bool reachedEnvironment{hits.size() < MAX_NUM_BOUNCES};
+    const glm::vec3 environmentDir{
+        hits.empty() ? primary.dir : hits.back().outgoingDir
+    };
 
-	if (reachedEnvironment)
-	{
-		incomingLight += environmentalLight(environmentDir);
+    if (reachedEnvironment) {
+        incomingLight += environmentalLight(environmentDir);
 
-		std::cout << "A ray of light comes from the environment at direction "
-			<< toStr(-environmentDir) << " with color " << toStr(incomingLight) << '\n';
-	}
+        std::cout << "A ray of light comes from the environment at direction "
+                  << toStr(-environmentDir) << " with color "
+                  << toStr(incomingLight) << '\n';
+    }
 
-	// reverse iterate from the start of a path of light
-	for (int i = hits.size() - 1; i >= 0; i--)
-	{
-		const Intersection& hit{ hits[i] };
+    // reverse iterate from the start of a path of light
+    for (int i = hits.size() - 1; i >= 0; i--) {
+        const Intersection& hit{hits[i]};
 
-		std::cout << "It hits something!\n";
+        std::cout << "It hits something!\n";
 
-		// light emitted from hit surface
-		const glm::vec3 emittedLight{
-			hit.material.emissionColor * hit.material.emissionStrength
-		};
+        // light emitted from hit surface
+        const glm::vec3 emittedLight{
+            hit.material.emissionColor * hit.material.emissionStrength
+        };
 
-		if (emittedLight != glm::vec3{ 0 })
-			std::cout << "That something is also emitting light: " << toStr(emittedLight)
-			<< "\ncombining that with the current light: " << toStr(incomingLight)
-			<< "\nwe now have: " << toStr(emittedLight + incomingLight) << "\n\n";
+        if (emittedLight != glm::vec3{0})
+            std::cout << "That something is also emitting light: "
+                      << toStr(emittedLight)
+                      << "\ncombining that with the current light: "
+                      << toStr(incomingLight) << "\nwe now have: "
+                      << toStr(emittedLight + incomingLight) << "\n\n";
 
-		// cos(theta) term
-		const float lightStrength{
-			glm::max(0.f, glm::dot(hit.normal, -hit.incidentDir))
-		};
+        // cos(theta) term
+        const float lightStrength{
+            glm::max(0.f, glm::dot(hit.normal, -hit.incidentDir))
+        };
 
-		std::cout << "incoming light = " << toStr(emittedLight) << " + ("
-			<< toStr(hit.material.albedo) << " * " << toStr(incomingLight) << " * " << lightStrength << ")\n";
+        std::cout << "incoming light = " << toStr(emittedLight) << " + ("
+                  << toStr(hit.material.albedo) << " * " << toStr(incomingLight)
+                  << " * " << lightStrength << ")\n";
 
-		// basically the rendering equation
-		incomingLight = emittedLight + (hit.material.albedo * incomingLight * lightStrength);
+        // basically the rendering equation
+        incomingLight = emittedLight
+                        + (hit.material.albedo * incomingLight * lightStrength);
 
-		std::cout << " == " << toStr(incomingLight) << "\n\n";
-	}
+        std::cout << " == " << toStr(incomingLight) << "\n\n";
+    }
 
-	std::cout << "and that ray of light makes its way into your eye, you percieve the color " 
-		<< toStr(incomingLight) << "\n\n";
+    std::cout << "and that ray of light makes its way into your eye, you "
+                 "percieve the color "
+              << toStr(incomingLight) << "\n\n";
 }
