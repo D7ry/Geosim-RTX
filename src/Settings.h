@@ -41,3 +41,7 @@ inline constexpr bool ANTIALIAS{ false };
 
 inline constexpr bool RAY_MARCH{ true };
 inline constexpr bool EUCLIDEAN{ false && RAY_MARCH };
+
+
+inline constexpr unsigned WINDOW_WIDTH{  INTERACTIVE_MODE ? INTERACTIVE_WIDTH  : OFFLINE_WIDTH  };
+inline constexpr unsigned WINDOW_HEIGHT{ INTERACTIVE_MODE ? INTERACTIVE_HEIGHT : OFFLINE_HEIGHT };

@@ -47,14 +47,12 @@ static constexpr float CAM_FAST_SPD{ 1.00f };
 
 static constexpr float MOUSE_SENSITIVITY{ 1.5f };
 
-static constexpr unsigned WINDOW_WIDTH{  INTERACTIVE_MODE ? INTERACTIVE_WIDTH  : OFFLINE_WIDTH  };
-static constexpr unsigned WINDOW_HEIGHT{ INTERACTIVE_MODE ? INTERACTIVE_HEIGHT : OFFLINE_HEIGHT };
 
-#include "cuda_playground.h"
+#include "gpu.h"
 
 int main()
 {
-    CudaPlayground::run();
+    CudaPlayground::play();
     return 0;
     //if (!Math::hyperbolicUnitTests())
     //{

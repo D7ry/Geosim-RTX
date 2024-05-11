@@ -26,7 +26,9 @@ add_executable(
     src/Renderer.cpp
     src/util/Math.cpp
     src/util/Window.cpp
-    src/cuda_playground.cu
+    src/gpu.cu
+    src/Camera.cpp
+    src/Image.cpp
 )
 
 
