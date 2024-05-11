@@ -1,0 +1,3 @@
+namespace CudaPlayground {
+    void run();
+}

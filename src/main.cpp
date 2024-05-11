@@ -50,8 +50,12 @@ static constexpr float MOUSE_SENSITIVITY{ 1.5f };
 static constexpr unsigned WINDOW_WIDTH{  INTERACTIVE_MODE ? INTERACTIVE_WIDTH  : OFFLINE_WIDTH  };
 static constexpr unsigned WINDOW_HEIGHT{ INTERACTIVE_MODE ? INTERACTIVE_HEIGHT : OFFLINE_HEIGHT };
 
+#include "cuda_playground.h"
+
 int main()
 {
+    CudaPlayground::run();
+    return 0;
     //if (!Math::hyperbolicUnitTests())
     //{
     //    std::cout << "unit tests failed";
