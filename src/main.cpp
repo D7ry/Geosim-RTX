@@ -50,9 +50,30 @@ static constexpr float MOUSE_SENSITIVITY{ 1.5f };
 
 #include "gpu.h"
 
+void testCuda() {
+    // CudaPlayground::play();
+    Camera cam_;
+    Scene scene_;
+    Image img_{ 800, 600};
+    
+    // reset all pixels
+    for (auto& p : img_.pixels)
+        p = { 0,0,0 };
+
+    RendererCUDA::render(&scene_, &cam_, &img_);
+    // check pixel color
+    for (auto& p : img_.pixels)
+    {
+        if (p != glm::vec3{ 0,0,0 })
+        {
+            std::cout << "pixel color: " << p.r << ' ' << p.g << ' ' << p.b << '\n';
+        }
+    }
+}
+
 int main()
 {
-    CudaPlayground::play();
+    testCuda();
     return 0;
     //if (!Math::hyperbolicUnitTests())
     //{

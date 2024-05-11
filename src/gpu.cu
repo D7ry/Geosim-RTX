@@ -1,4 +1,5 @@
 #include "gpu.h"
+#include <cuda_runtime_api.h>
 #include <iostream>
 #include <stdio.h>
 #include <glm/glm.hpp>
@@ -30,12 +31,50 @@ void play() {
 
 namespace RendererCUDA {
 
-__global__ void _render(const Scene* scene, const Camera* camera, Image* image) {
+__global__ void _render_pixel(const Scene* scene, const Camera* camera, int width, int height, glm::vec3* frameBuffer) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    glm::vec3 debugColor{1.f, 0.f, 0.f};
+    
+    //TODO: better way to calculate NDC
+    const glm::vec2 ndc
+    {
+        (x + 0.5f) / width,
+        (y + 0.5f) / height
+    };
+
+
+    glm::uvec2 pixelCoord{ndc.x * width, ndc.y * height};
+
+    int frameBufferIndex = pixelCoord.x + (pixelCoord.y * width);
+
+    frameBuffer[frameBufferIndex] = debugColor;
+}
+
+__host__ void render(const Scene* scene, const Camera* camera, Image* image) {
     float aspectRatio = (float)image->width / image->height; // w : h
 
     // todo figure out why FOV seems "off"
     float fovComponent{tanf(camera->FOV / 2.f)};
 
+    int width = image->width;
+    int height = image->height;
+
+    dim3 blockDims = dim3(16, 16); // 256 threads per block
+    dim3 gridDims = dim3((width + blockDims.x - 1) / blockDims.x, (height + blockDims.y - 1) / blockDims.y);
+
+    // allocate FB
+    glm::vec3* frameBuffer;
+    cudaMalloc(&frameBuffer, width * height * sizeof(glm::vec3));
+
+    _render_pixel<<<gridDims, blockDims>>>(scene, camera, width, height, frameBuffer);
+
+    cudaDeviceSynchronize();
+
+    cudaMemcpy(image->pixels.data(), frameBuffer, width * height * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
+
+    cudaFree(frameBuffer);
     // for (int y = 0; y < image.height; ++y) {
     //     for (int x = 0; x < image.width; ++x) {
     //         const int index = x + (y * image.width);
