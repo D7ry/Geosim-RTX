@@ -52,6 +52,6 @@ struct Image
 
 		sf::Image i;
 		i.create(width, height, uint8Pixels.data());
-		i.saveToFile(filename + " hash" + std::to_string((unsigned)&i) + ".png");
+		i.saveToFile(filename + " hash" + std::to_string((uint64_t)&i) + ".png");
 	}
 };

@@ -195,12 +195,14 @@ std::optional<RayIntersection> Math::rayPlaneIntersection(
 	if (intersectionBehind)
 		normal = -normal;
 	
-	return RayIntersection(
+	RayIntersection ret = {
 		ray, 
 		t, 
 		getPoint(ray, t), 
 		normal
-	);
+    };
+
+    return ret;
 }
 
 glm::vec3 Math::getPoint(const Ray& r, float t)
@@ -223,7 +225,7 @@ glm::vec3 Math::sphereNormal(
 		return normal;
 }
 
-glm::vec3 Math::triangleNormal(const glm::vec3 const vertices[3])
+glm::vec3 Math::triangleNormal(const glm::vec3 vertices[3])
 {
 	// todo unit test
 	return glm::cross(vertices[1] - vertices[0], vertices[2] - vertices[0]);
@@ -447,7 +449,7 @@ glm::vec4 Math::constructHyperboloidPoint(const glm::vec3& direction, float dist
 {
 	const float w{ cosh(distance) };
 	const float magSquared = w * w - 1;
-	const glm::vec3 d{ std::sqrtf(magSquared) * glm::normalize(direction) };
+	const glm::vec3 d{ sqrtf(magSquared) * glm::normalize(direction) };
 	return glm::vec4{ d, w };
 }
 
@@ -717,12 +719,12 @@ bool Math::hyperbolicUnitTests()
 
 glm::vec4 Math::sphGeoFlowPos(const glm::vec4& pos, const glm::vec4& dir, float t)
 {
-	return { cos(t) * pos + sin(t) * dir };
+	return { static_cast<float>(cos(t)) * pos + static_cast<float>(sin(t)) * dir };
 }
 
 glm::vec4 Math::sphGeoFlowDir(const glm::vec4& pos, const glm::vec4& dir, float t)
 {
-	return { sin(t) * pos + cos(t) * dir };
+	return { static_cast<float>(sin(t)) * pos + static_cast<float>(cos(t)) * dir };
 }
 
 float Math::sphDot(const glm::vec4& u, const glm::vec4& v)

@@ -7,6 +7,7 @@
 #include <glm/mat4x4.hpp>
 
 #include <functional>
+#include <string>
 
 struct Intersection;
 
@@ -84,7 +85,7 @@ public:
 		bool isInside = false
 	);
 
-	static glm::vec3 triangleNormal(const glm::vec3 const vertices[3]);
+	static glm::vec3 triangleNormal(const glm::vec3 vertices[3]);
 
 	typedef std::array<glm::vec3, 3> Vertices;
 

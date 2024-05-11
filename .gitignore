@@ -1,10 +1,14 @@
 # dependencies
 /Dependencies
 
+# temp files
+/.cache
+
 # building
 /Debug
 /Release
 /x64
+/build
 
 # Visual Studio Project Files
 .vs/
