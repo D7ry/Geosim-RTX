@@ -5,6 +5,13 @@
 namespace CUDAMath
 {
 
+__device__ glm::vec3 lerp(float t, const glm::vec3& a, const glm::vec3& b)
+{
+	t = glm::clamp(t, 0.f, 1.f);
+
+	return (t * b) + ((1 - t) * a);
+}
+
 __device__ float rng(unsigned state) {
     state *= (state + 340147) * (state + 1273128) * (state + 782243);
 
