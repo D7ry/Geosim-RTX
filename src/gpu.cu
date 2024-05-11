@@ -1,9 +1,8 @@
 #include "gpu.h"
 #include <cuda_runtime_api.h>
+#include <glm/glm.hpp>
 #include <iostream>
 #include <stdio.h>
-#include <glm/glm.hpp>
-
 
 #include "Camera.h"
 #include "Image.h"
@@ -35,21 +34,20 @@ __global__ void _render_pixel(const Scene* scene, const Camera* camera, int widt
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
 
-    glm::vec3 debugColor{1.f, 0.f, 0.f};
-    
-    //TODO: better way to calculate NDC
-    const glm::vec2 ndc
-    {
-        (x + 0.5f) / width,
-        (y + 0.5f) / height
-    };
+    if (x >= width || y >= height) { // out of bounds, may happen if we have non-divisible image size
+        return;
+    }
 
+    glm::vec3 outColor{0.f};
 
-    glm::uvec2 pixelCoord{ndc.x * width, ndc.y * height};
+    // TODO: better way to calculate NDC
+    const glm::vec2 ndc{(x + 0.5f) / width, (y + 0.5f) / height};
 
-    int frameBufferIndex = pixelCoord.x + (pixelCoord.y * width);
-
-    frameBuffer[frameBufferIndex] = debugColor;
+    { // frame buffer writeback
+        glm::uvec2 pixelCoord{ndc.x * width, ndc.y * height};
+        int frameBufferIndex = pixelCoord.x + (pixelCoord.y * width);
+        frameBuffer[frameBufferIndex] = outColor;
+    }
 }
 
 __host__ void render(const Scene* scene, const Camera* camera, Image* image) {
@@ -72,8 +70,8 @@ __host__ void render(const Scene* scene, const Camera* camera, Image* image) {
 
     cudaDeviceSynchronize();
 
+    // copy FB to host
     cudaMemcpy(image->pixels.data(), frameBuffer, width * height * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
-
     cudaFree(frameBuffer);
     // for (int y = 0; y < image.height; ++y) {
     //     for (int x = 0; x < image.width; ++x) {
@@ -170,7 +168,6 @@ __host__ void render(const Scene* scene, const Camera* camera, Image* image) {
     //         image.setPixel(ndc, pixelColor);
     //     }
     // }
-
 }
 
 } // namespace RendererCUDA
