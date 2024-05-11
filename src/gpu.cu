@@ -7,8 +7,12 @@
 #include "Camera.h"
 #include "Image.h"
 #include "Scene.h"
+#include "Settings.h"
+#include "util/CUDAMath.h"
 
-namespace CudaPlayground {
+
+namespace CudaPlayground
+{
 __global__ void cudaHello() {
     printf("Hello World from CUDA thread [%d,%d]\n", threadIdx.x, blockIdx.x);
     glm::vec3 a(1.0f, 2.0f, 3.0f);
@@ -28,26 +32,53 @@ void play() {
 }
 } // namespace CudaPlayground
 
-namespace RendererCUDA {
+namespace RendererCUDA
+{
 
-__global__ void _render_pixel(const Scene* scene, const Camera* camera, int width, int height, glm::vec3* frameBuffer) {
+void check_device() {
+    printf("Checking CUDA device...\n");
+    int deviceCount = 0;
+    cudaError_t error_id = cudaGetDeviceCount(&deviceCount);
+
+    if (error_id != cudaSuccess) {
+        printf(
+            "cudaGetDeviceCount returned %d\n-> %s\n",
+            static_cast<int>(error_id),
+            cudaGetErrorString(error_id)
+        );
+        printf("Result = FAIL\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // This function call returns 0 if there are no CUDA capable devices.
+    if (deviceCount == 0) {
+        printf("There are no available device(s) that support CUDA\n");
+    } else {
+        printf("Detected %d CUDA Capable device(s)\n", deviceCount);
+    }
+}
+
+// Render a single pixel
+__global__ void _render_pixel(
+    const Scene* scene,
+    const Camera* camera,
+    int width,
+    int height,
+    glm::vec3* frameBuffer
+) {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
 
-    if (x >= width || y >= height) { // out of bounds, may happen if we have non-divisible image size
-        return;
-    }
+    glm::vec3 final_color{0.f};
 
-    glm::vec3 outColor{0.f};
-
-    // TODO: better way to calculate NDC
     const glm::vec2 ndc{(x + 0.5f) / width, (y + 0.5f) / height};
 
-    { // frame buffer writeback
-        glm::uvec2 pixelCoord{ndc.x * width, ndc.y * height};
-        int frameBufferIndex = pixelCoord.x + (pixelCoord.y * width);
-        frameBuffer[frameBufferIndex] = outColor;
-    }
+    glm::uvec2 pixelCoord{ndc.x * width, ndc.y * height};
+
+    int frameBufferIndex = pixelCoord.x + (pixelCoord.y * width);
+
+    final_color = {1.f, 0.f, 0.f}; //FIXME: remove this
+    frameBuffer[frameBufferIndex] = final_color;
 }
 
 __host__ void render(const Scene* scene, const Camera* camera, Image* image) {
@@ -60,66 +91,60 @@ __host__ void render(const Scene* scene, const Camera* camera, Image* image) {
     int height = image->height;
 
     dim3 blockDims = dim3(16, 16); // 256 threads per block
-    dim3 gridDims = dim3((width + blockDims.x - 1) / blockDims.x, (height + blockDims.y - 1) / blockDims.y);
+    dim3 gridDims = dim3(
+        (width + blockDims.x - 1) / blockDims.x,
+        (height + blockDims.y - 1) / blockDims.y
+    );
 
     // allocate FB
-    glm::vec3* frameBuffer;
-    cudaMalloc(&frameBuffer, width * height * sizeof(glm::vec3));
+    glm::vec3* frameBuffer = image->pixels.data();
+    glm::vec3* frameBuffer_Device;
+    cudaMalloc(&frameBuffer_Device, width * height * sizeof(glm::vec3));
 
-    _render_pixel<<<gridDims, blockDims>>>(scene, camera, width, height, frameBuffer);
+    _render_pixel<<<gridDims, blockDims>>>(
+        scene, camera, width, height, frameBuffer_Device
+    );
 
     cudaDeviceSynchronize();
 
-    // copy FB to host
-    cudaMemcpy(image->pixels.data(), frameBuffer, width * height * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
-    cudaFree(frameBuffer);
+    cudaMemcpy(
+        frameBuffer,
+        frameBuffer_Device,
+        width * height * sizeof(glm::vec3),
+        cudaMemcpyDeviceToHost
+    );
+    cudaFree(frameBuffer_Device);
+
     // for (int y = 0; y < image.height; ++y) {
     //     for (int x = 0; x < image.width; ++x) {
     //         const int index = x + (y * image.width);
     //
-    //         // misc debug stuff
-    //         const glm::uvec2 debugRay{image.width / 2, image.height / 2};
-    //         isDebugRay = (x == debugRay.x && y == debugRay.y);
-    //
-    //         if constexpr (!INTERACTIVE_MODE) {
-    //             const unsigned index{x + (y * image.width)};
-    //             const unsigned numPixels{image.width * image.height};
-    //
-    //             const float completionPercent{100.f * index / numPixels};
-    //
-    //             // how many pixels per print
-    //             constexpr unsigned printFreq{50};
-    //
-    //             static int prevPrintIndex{0};
-    //
-    //             if (index > prevPrintIndex + printFreq) {
-    //                 prevPrintIndex = index;
-    //                 std::cout << completionPercent << "%\n";
-    //             }
-    //         }
-    //
     //         // ray tracing stuff
-    //         const glm::vec2 ndc{(x + 0.5f) / image.width, (y + 0.5f) / image.height};
+    //         const glm::vec2 ndc{(x + 0.5f) / image.width, (y + 0.5f) /
+    //         image.height};
     //
     //         glm::vec3 color{0.f};
     //
     //         for (int i = 0; i < RAYS_PER_PIXEL; ++i) {
     //             glm::vec2 rayOffset = Math::randomVec2(rngSeed + i);
     //
-    //             const glm::vec2 ndcAliased{(x + rayOffset.x) / image.width, (y + rayOffset.y) / image.height};
+    //             const glm::vec2 ndcAliased{(x + rayOffset.x) / image.width,
+    //             (y + rayOffset.y) / image.height};
     //
     //             // screen space
     //             glm::vec2 coord;
     //
     //             if constexpr (ANTIALIAS) {
     //                 coord = glm::vec2{
-    //                     ((2.f * ndcAliased.x) - 1.f) * fovComponent * aspectRatio,
-    //                     1.f - (2.f * ndcAliased.y) * fovComponent // flip vertically so +y is up
+    //                     ((2.f * ndcAliased.x) - 1.f) * fovComponent *
+    //                     aspectRatio, 1.f - (2.f * ndcAliased.y) *
+    //                     fovComponent // flip vertically so +y is up
     //                 };
     //             } else {
     //                 coord = glm::vec2{
     //                     ((2.f * ndc.x) - 1.f) * fovComponent * aspectRatio,
-    //                     1.f - (2.f * ndc.y) * fovComponent // flip vertically so +y is up
+    //                     1.f - (2.f * ndc.y) * fovComponent // flip vertically
+    //                     so +y is up
     //                 };
     //             }
     //
@@ -155,10 +180,13 @@ __host__ void render(const Scene* scene, const Camera* camera, Image* image) {
     //
     //         // debug visualization
     //         const bool shouldInvertColor{
-    //             VISUALIZE_DEBUG_RAY && ((x == debugRay.x + 1 && y == debugRay.y + 0) || // left
-    //                                     (x == debugRay.x - 1 && y == debugRay.y - 0) || // right
-    //                                     (x == debugRay.x + 0 && y == debugRay.y + 1) || // top
-    //                                     (x == debugRay.x - 0 && y == debugRay.y - 1))   // bottom
+    //             VISUALIZE_DEBUG_RAY && ((x == debugRay.x + 1 && y ==
+    //             debugRay.y + 0) || // left
+    //                                     (x == debugRay.x - 1 && y ==
+    //                                     debugRay.y - 0) || // right (x ==
+    //                                     debugRay.x + 0 && y == debugRay.y +
+    //                                     1) || // top (x == debugRay.x - 0 &&
+    //                                     y == debugRay.y - 1))   // bottom
     //         };
     //
     //         if (shouldInvertColor)

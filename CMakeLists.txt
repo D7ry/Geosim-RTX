@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
-# set(CMAKE_C_COMPILER "/usr/bin/clang")
-# set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
+# set(CMAKE_C_COMPILER "/usr/bin/gcc")
+# set(CMAKE_CXX_COMPILER "/usr/bin/g++")
+# set(CMAKE_CUDA_COMPILER "/usr/local/cuda-12/bin/nvcc")
 
 enable_language(CUDA)
 
@@ -29,6 +30,7 @@ add_executable(
     src/gpu.cu
     src/Camera.cpp
     src/Image.cpp
+    src/util/CUDAMath.cu
 )
 
 
@@ -40,4 +42,7 @@ target_link_libraries(rodent_raytracer PRIVATE ${SFML_LIBRARIES} ${SFML_DEPENDEN
 
 # CUDA stuff
 # set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -arch=sm_60")
-set_target_properties(rodent_raytracer PROPERTIES CUDA_ARCHITECTURES "60")
+
+# set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -arch=sm_60")
+set_target_properties(rodent_raytracer PROPERTIES CUDA_ARCHITECTURES "86")
+

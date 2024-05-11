@@ -2,7 +2,7 @@
 
 inline constexpr bool INTERACTIVE_MODE{ 1 };
 
-inline constexpr int RAYS_PER_PIXEL{ INTERACTIVE_MODE ? 1 : 1 };
+inline constexpr int RAYS_PER_PIXEL{ 4 };
 
 inline constexpr int MAX_NUM_BOUNCES{ INTERACTIVE_MODE ? 3 : 4 };
 

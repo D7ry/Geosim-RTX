@@ -47,7 +47,9 @@ static constexpr float CAM_FAST_SPD{ 1.00f };
 
 static constexpr float MOUSE_SENSITIVITY{ 1.5f };
 
+#define CUDA 1
 
+#if CUDA
 #include "gpu.h"
 
 void testCuda() {
@@ -64,17 +66,22 @@ void testCuda() {
     // check pixel color
     for (auto& p : img_.pixels)
     {
-        if (p != glm::vec3{ 0,0,0 })
+        if (p != glm::vec3{ 1,0,0 })
         {
             std::cout << "pixel color: " << p.r << ' ' << p.g << ' ' << p.b << '\n';
         }
     }
 }
 
+#endif
+
 int main()
 {
+#if CUDA
+    RendererCUDA::check_device();
     testCuda();
     return 0;
+#endif
     //if (!Math::hyperbolicUnitTests())
     //{
     //    std::cout << "unit tests failed";
@@ -745,7 +752,7 @@ int main()
         // update camera
         const float minPitch{ -glm::half_pi<float>() + 0.01f };
         const float maxPitch{  glm::half_pi<float>() - 0.01f };
-        camera.pitch = std::clamp(camera.pitch, minPitch, maxPitch);
+        camera.pitch = glm::clamp(camera.pitch, minPitch, maxPitch);
 
         camera.updateViewMat();
 
