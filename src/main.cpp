@@ -58,7 +58,7 @@ static constexpr float MOUSE_SENSITIVITY{1.5f};
 void testCuda() {
     // CudaPlayground::play();
     Camera cam_;
-    Image img_{800, 600};
+    Image img_{1920, 1080};
     CUDAStruct::Scene scene;
 
     // add object
@@ -139,14 +139,17 @@ int main() {
     timer.restart();
 
     Window* window = nullptr;
+    const int window_width = 800;
+    const int window_height = 600;
+    const int window_scale = 1;
 
     if (INTERACTIVE_MODE) {
         window = new Window(
-            WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_SCALE, "Rodent-Raytracer"
+            window_width, window_height, 1, "Rodent-Raytracer RTX"
         );
     }
 
-    Image image{WINDOW_WIDTH, WINDOW_HEIGHT};
+    Image image{window_width, window_height};
 
 #if CUDA
     CUDAStruct::Scene scene;
@@ -280,9 +283,9 @@ int main() {
         watermelon2.mat_emissionColor = {1, 1, 1};
         watermelon2.mat_emissionStrength = 0.5;
 
-        // object.add(mirror);
-        // object.add(tomato);
-        // object.add(watermelon);
+        object.add(mirror);
+        object.add(tomato);
+        object.add(watermelon);
         object.add(watermelon2);
 
         object.position = {0, 0, -1.5};

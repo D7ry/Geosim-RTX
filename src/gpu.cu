@@ -235,7 +235,7 @@ __device__ bool get_closest_intersection(
         }
         //       //
         //       //
-        double dist = 9999999999;
+        double dist = DBL_MAX;
         const CUDAStruct::SpherePrimitive* closestPrimitive = nullptr;
 
         getClosestPrimitive(marchPos, scene, &dist, &closestPrimitive);
@@ -299,7 +299,6 @@ __device__ bool get_closest_intersection(
             }
         }
     }
-    printf("No hit\n");
 
     return false;
     //
