@@ -7,9 +7,11 @@
 #include "Camera.h"
 #include "Image.h"
 #include "Primitive.h"
-#include "Scene.h"
 #include "Settings.h"
 #include "util/CUDAMath.h"
+
+#include "gpu_sdf.h"
+#include "util/Math.h"
 
 namespace CudaPlayground
 {
@@ -59,7 +61,7 @@ void check_device() {
 }
 
 __device__ glm::vec3 environmentalLight(const glm::vec3& dir) {
-    const float dayTime{64 / 128.f}; // FIXME: actually add global tick
+    const float dayTime{64 / 128.f}; // TODO: actually use global tick
 
     // glm::vec3 lightDir{ sinf(dayTime), cosf(dayTime), 0 };
     glm::vec3 lightDir{0, 1, 0};
@@ -123,48 +125,46 @@ __device__ glm::vec3 evaluate_light_path(
     return incomingLight;
 }
 
-__device__ std::pair<double, const Primitive&> getClosestPrimitive(
+// TODO: no kd tree traversal yet
+__device__ void getClosestPrimitive(
     const glm::vec4& p,
-    const Scene* scene
+    const CUDAStruct::Scene* scene,
+    double* distance,
+    const CUDAStruct::SpherePrimitive* closestPrimitive
 ) {
     double minDistance{100000000};
-    const Primitive* minDistancePrimitive{nullptr};
     // TODO: refactor scene's data structure to be CUDA-compatible
-    // for (int i = 0; i < scene->geometry.size(); i++) {
-    //
-    // }
-    // for (const Geometry& object : scene->geometry) {
-    //     const glm::vec4 objHypPos{Math::constructHyperboloidPoint(
-    //         object.position, glm::length(object.position)
-    //     )};
-    //
-    //     for (const auto& primitivePtr : object.primitives) {
-    //         const Primitive& primitive = *primitivePtr.get();
-    //         const double d = primitive.SDF(p, objHypPos);
-    //         if (d < minDistance) {
-    //             minDistance = std::min(minDistance, d);
-    //             minDistancePrimitive = &primitive;
-    //         }
-    //     }
-    // }
-    //
-    // if (minDistancePrimitive == nullptr)
-    //	std::cout << "brb, bouta crash\n";
 
-    // return {minDistance, *minDistancePrimitive};
+    for (int i = 0; i < scene->num_geometries; i++) {
+        const CUDAStruct::Geometry* object = scene->geometries + i;
+        const glm::vec4 objHypPos{Math::constructHyperboloidPoint(
+            object->position, glm::length(object->position)
+        )};
+        for (int j = 0; j < object->num_spheres; j++) {
+            const CUDAStruct::SpherePrimitive* sphere = object->spheres + j;
+            const double d
+                = CUDAStruct::SpherePrimitive_SDF(sphere, p, objHypPos);
+            if (d < minDistance) {
+                minDistance = glm::min(minDistance, d);
+                closestPrimitive = sphere;
+            }
+        }
+    }
 }
 
+// Get the closest intersection, returns true if hit something and stores the
+// intersection in the buffer
 __device__ bool get_closest_intersection(
     glm::vec3 ray_origin,
     glm::vec3 ray_dir,
-    Intersection* intersection_buffer, // can directly store the intersection into 
-    const Scene* scene,
+    Intersection*
+        intersection_buffer, // can directly store the intersection into
+    const CUDAStruct::Scene* scene,
     float hypCamPosX,
     float hypCamPosY,
     float hypCamPosZ,
     float hypCamPosW
 ) {
-    return false;
     //
     //
     float totalDistanceTraveled = 0.0;
@@ -184,68 +184,73 @@ __device__ bool get_closest_intersection(
     const glm::vec4 hyperbolicPos{
         p // Math::correctH3Point(p)
     };
-  //   //
+    //   //
     const glm::vec4 d{ray_dir, 0};
     //
     const glm::vec4 hyperbolicDir{CUDAMath::correctDirection(p, d)};
     //
     glm::vec4 marchPos{hyperbolicPos};
     glm::vec4 marchDir{hyperbolicDir};
-  //   //
-  //   for (int i = 0; i < MAX_NUM_STEPS; ++i) {
-  //       if (!CUDAMath::isH3Point(marchPos)
-  //           || !CUDAMath::isH3Dir(marchPos, marchDir)) {
-  //           hyperbolicErrorAcc++;
-  //       }
-  //       //
-  //       //
-  //       const auto closest = getClosestPrimitive(marchPos, scene);
-		//
-  //       double dist = closest.first;
-		//
-  //       // we hit something
-  //       if (dist < MIN_HIT_DISTANCE) {
-  //           const Primitive& primitive = closest.second;
-  //           glm::vec3 normal
-  //               = primitive.material.get()
-  //                     ->albedo; // for rough quick rendering/debugging
-		//
-  //           if (!RENDER_WITH_POTATO_SETTINGS)
-  //               normal = computeNormal(marchPos, scene);
-		//
-  //           RayIntersection rayIntersection{ray, -1, marchPos, normal};
-  //           Intersection i{*primitive.material.get(), rayIntersection};
-		//
-  //           closestHit = std::make_unique<Intersection>(i);
-  //       } else if (
-		// 		!CUDAMath::isH3Point(marchPos) ||
-		// 		!CUDAMath::isH3Dir(marchPos, marchDir) ||
-		// 		totalDistanceTraveled + dist > MAX_TRACE_DISTANCE ||
-  //               glm::isnan(marchPos.x) ||
-  //               glm::isnan(marchDir.x)
-		// 	)
-		// {
-  //           break;
-  //       } else {
-  //           const float ss{(float)dist / 1}; // substep size
-  //           while (dist > 0) {
-  //               auto newMarch = march(marchPos, marchDir, ss);
-		//
-  //               marchPos = Math::correctH3Point(newMarch.first);
-  //               // marchPos = newMarch.first;
-  //               // marchDir = Math::hypNormalize(newMarch.second);
-  //               // marchDir = Math::hypDirection(marchPos, newMarch.second);
-  //               marchDir = Math::correctDirection(marchPos, newMarch.second);
-  //               totalDistanceTraveled += ss;
-  //               dist -= ss;
-  //           }
-  //       }
-  //   }
-		//
-  //   if (closestHit)
-  //       return true;
-		//
-  //   return false;
+    return false;
+    //   //
+    for (int i = 0; i < MAX_NUM_STEPS; ++i) {
+        if (!CUDAMath::isH3Point(marchPos)
+            || !CUDAMath::isH3Dir(marchPos, marchDir)) {
+            hyperbolicErrorAcc++;
+        }
+        //       //
+        //       //
+        double dist = 0;
+        const CUDAStruct::SpherePrimitive* closestPrimitive = nullptr;
+
+        getClosestPrimitive(marchPos, scene, &dist, closestPrimitive);
+        //
+        //       double dist = closest.first;
+        //       // we hit something
+        if (dist < MIN_HIT_DISTANCE) {
+            // glm::vec3 normal
+            //     = primitive.material.get()
+            //           ->albedo; // for rough quick rendering/debugging
+
+            glm::vec3 normal{0}; // TODO: implemenet normal computation
+            
+
+            // if (!RENDER_WITH_POTATO_SETTINGS)
+                // normal = computeNormal(marchPos, scene);
+
+            RayIntersection rayIntersection{ray, -1, marchPos, normal};
+            Intersection i = Intersection()
+            {*primitive.material.get(), rayIntersection};
+
+            *intersection_buffer = i;
+
+        } else if (!CUDAMath::isH3Point(marchPos) 
+                || !CUDAMath::isH3Dir(marchPos, marchDir) 
+                || totalDistanceTraveled + dist > MAX_TRACE_DISTANCE 
+                || glm::isnan(marchPos.x) 
+                || glm::isnan(marchDir.x))
+        {
+            break;
+        } else {
+            const float ss{(float)dist / 1}; // substep size
+            while (dist > 0) {
+                glm::vec4 new_pos;
+                glm::vec4 new_dir;
+
+                CUDAMath::geodesicFlowHyperbolic(marchPos, marchDir, ss, &new_pos, &new_dir);
+
+                marchPos = Math::correctH3Point(new_pos);
+                marchDir = Math::correctDirection(marchPos, new_dir);
+                totalDistanceTraveled += ss;
+                dist -= ss;
+            }
+        }
+    }
+    //
+    //   if (closestHit)
+    //       return true;
+    //
+    //   return false;
 }
 
 // trace a single ray and return the color
@@ -255,7 +260,7 @@ __device__ glm::vec3 trace_ray(
     Intersection* hitsBuffer_ray, // guaranteed to allow for storing num_bounces
                                   // intersection
     int num_bounces,
-    const Scene* scene,
+    const CUDAStruct::Scene* scene,
     float hypCamPosX,
     float hypCamPosY,
     float hypCamPosZ,
@@ -295,13 +300,13 @@ __device__ glm::vec3 trace_ray(
         evaluate_light_path(origin, hitsBuffer_ray, num_hits)
     };
 
-    return glm::vec3{1, 0, 0}; // finalColor;
+    return glm::vec3{1, 0, 0}; // finalColor; FIXME: return actual color.
     return finalColor;
 }
 
 // Render a single pixel
 __global__ void render_pixel(
-    const Scene* scene,
+    const CUDAStruct::Scene* scene,
     const Camera* camera,
     int width,
     int height,
@@ -381,7 +386,11 @@ __global__ void render_pixel(
     }
 }
 
-__host__ void render(const Scene* scene, const Camera* camera, Image* image) {
+__host__ void render(
+    const CUDAStruct::Scene* scene,
+    const Camera* camera,
+    Image* image
+) {
     float aspectRatio = (float)image->width / image->height; // w : h
 
     // todo figure out why FOV seems "off"
@@ -408,8 +417,15 @@ __host__ void render(const Scene* scene, const Camera* camera, Image* image) {
         width * height * RAYS_PER_PIXEL * MAX_NUM_BOUNCES * sizeof(Intersection)
     ); // each ray (bounce) needs to store its hit
 
+    // allocate mem for cudascene
+    CUDAStruct::Scene* scene_Device;
+    cudaMalloc(&scene_Device, sizeof(CUDAStruct::Scene));
+    cudaMemcpy(
+        scene_Device, scene, sizeof(CUDAStruct::Scene), cudaMemcpyHostToDevice
+    );
+
     render_pixel<<<gridDims, blockDims>>>(
-        scene,
+        scene_Device,
         camera,
         width,
         height,
@@ -417,6 +433,8 @@ __host__ void render(const Scene* scene, const Camera* camera, Image* image) {
         MAX_NUM_BOUNCES,
         frameBuffer_Device,
         hitsBuffer_Device,
+        // FIXME: these values shouldn't be passed as params, instead store them
+        // in camera
         hypCamPosX,
         hypCamPosY,
         hypCamPosZ,
@@ -433,6 +451,7 @@ __host__ void render(const Scene* scene, const Camera* camera, Image* image) {
     );
     cudaFree(frameBuffer_Device);
     cudaFree(hitsBuffer_Device);
+    cudaFree(scene_Device);
 }
 
 } // namespace RendererCUDA
