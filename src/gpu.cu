@@ -139,6 +139,25 @@ __device__ glm::vec3 intersection_evaluate_outgoing(
 
 namespace RendererCUDA
 {
+static CUDAStruct::Scene* scene_Device = nullptr;
+static Camera* camera_Device = nullptr;
+
+void init() {
+    printf("Initializing CUDA Renderer\n");
+    check_device();
+
+    cudaMalloc(&scene_Device, sizeof(CUDAStruct::Scene));
+    cudaMalloc(&camera_Device, sizeof(Camera));
+
+    printf("Initialized CUDA Renderer\n");
+}
+
+void cleanup() {
+    printf("Cleaning up CUDA Renderer\n");
+    cudaFree(scene_Device);
+    cudaFree(camera_Device);
+    printf("Cleaned up CUDA Renderer\n");
+}
 
 void check_device() {
     printf("Checking CUDA device...\n");
@@ -164,13 +183,15 @@ void check_device() {
 }
 
 #define PI 3.14159265359f
+
 __device__ glm::vec3 environmentalLight(
     const glm::vec3& dir,
     const CUDAStruct::Scene* scene
 ) {
     // Convert dayTime to azimuth and altitude
-    float azimuth = scene->dayTime * 2 * PI; // Assuming dayTime is in range [0, 1]
-    float altitude = 0.5f * PI; // Assuming sun always stays at zenith
+    float azimuth
+        = scene->dayTime * 2 * PI; // Assuming dayTime is in range [0, 1]
+    float altitude = 0.5f * PI;    // Assuming sun always stays at zenith
 
     // Calculate light direction in spherical coordinates
     glm::vec3 lightDir{
@@ -178,18 +199,19 @@ __device__ glm::vec3 environmentalLight(
         cosf(altitude),
         sinf(altitude) * sinf(azimuth)
     };
-    
+
     const glm::vec3 noonColor{0.3f};
     const glm::vec3 sunsetColor{0.3f, 0.1f, 0.1f};
 
     float lerp = sinf(scene->dayTime * PI);
 
-
     // Interpolate between sunset and noon colors
     glm::vec3 lightColor = CUDAMath::lerp(lerp, sunsetColor, noonColor);
 
     // Calculate light intensity
-    float light_intensity = glm::dot(-lightDir, dir); // Negative lightDir as we want direction towards the sun
+    float light_intensity = glm::dot(
+        -lightDir, dir
+    ); // Negative lightDir as we want direction towards the sun
 
     // Ensure light intensity is non-negative
     light_intensity = glm::max(0.f, light_intensity);
@@ -457,7 +479,9 @@ __device__ bool get_closest_intersection(
             intersection->normal = normal;
             intersection->incidentDir = ray_dir;
             intersection->outgoingDir
-                = CUDAStruct::intersection_evaluate_outgoing(intersection, rngState);
+                = CUDAStruct::intersection_evaluate_outgoing(
+                    intersection, rngState
+                );
 
             intersection->mat_albedo = closestPrimitive->mat_albedo;
             intersection->mat_emissionColor
@@ -520,12 +544,7 @@ __device__ glm::vec3 trace_ray(
               + i; // if intersection happens, store it into this buffer
 
         bool hit = get_closest_intersection(
-            origin,
-            direction,
-            hitsBuffer_bounce,
-            scene,
-            camera,
-            rngState
+            origin, direction, hitsBuffer_bounce, scene, camera, rngState
         );
 
         if (!hit) {
@@ -550,12 +569,12 @@ __device__ glm::vec3 trace_ray(
 
 // Render a single pixel
 __global__ void render_pixel(
-    const CUDAStruct::Scene* scene,
-    const Camera* camera,
     int width,
     int height,
     int rays_per_pixel,
     int bounces_per_ray,
+    const CUDAStruct::Scene* scene,
+    const Camera* camera,
     glm::vec3* frameBuffer_device,
     CUDAStruct::Intersection* hitsBuffer_device,
     curandState* rngStates_device
@@ -602,7 +621,9 @@ __global__ void render_pixel(
         // screen space
         glm::vec2 coord = glm::vec2{
             ((2.f * ndcAliased.x) - 1.f) * fovComponent * aspectRatio,
-            1.f - (2.f * ndcAliased.y) * fovComponent // flip vertically so +y is up
+            1.f
+                - (2.f * ndcAliased.y)
+                      * fovComponent // flip vertically so +y is up
         };
 
         // ray coords in world space
@@ -658,9 +679,15 @@ __host__ void render(
         (width + blockDims.x - 1) / blockDims.x,
         (height + blockDims.y - 1) / blockDims.y
     );
-    // Allocate rng states
 
-    curandState *rngStates_Device;
+    // copy scene and camera to device
+    cudaMemcpy(
+        scene_Device, scene, sizeof(CUDAStruct::Scene), cudaMemcpyHostToDevice
+    );
+    cudaMemcpy(camera_Device, camera, sizeof(Camera), cudaMemcpyHostToDevice);
+
+    // Allocate rng states
+    curandState* rngStates_Device;
     cudaMalloc(&rngStates_Device, sizeof(curandState) * num_threads_total);
 
     // allocate FB
@@ -677,25 +704,14 @@ __host__ void render(
             * sizeof(CUDAStruct::Intersection)
     ); // each ray (bounce) needs to store its hit
 
-    // allocate mem for cudascene
-    CUDAStruct::Scene* scene_Device;
-    cudaMalloc(&scene_Device, sizeof(CUDAStruct::Scene));
-    cudaMemcpy(
-        scene_Device, scene, sizeof(CUDAStruct::Scene), cudaMemcpyHostToDevice
-    );
-
-    // allocate camera
-    Camera* camera_Device;
-    cudaMalloc(&camera_Device, sizeof(Camera));
-    cudaMemcpy(camera_Device, camera, sizeof(Camera), cudaMemcpyHostToDevice);
 
     render_pixel<<<gridDims, blockDims>>>(
-        scene_Device,
-        camera_Device,
         width,
         height,
         RAYS_PER_PIXEL,
         MAX_NUM_BOUNCES,
+        scene_Device,
+        camera_Device,
         frameBuffer_Device,
         hitsBuffer_Device,
         rngStates_Device
@@ -709,14 +725,10 @@ __host__ void render(
         width * height * sizeof(glm::vec3),
         cudaMemcpyDeviceToHost
     );
-    //TODO: no need to free every iteration, free when cleaning up
+    // TODO: no need to free every iteration, free when cleaning up
     cudaFree(frameBuffer_Device);
     cudaFree(hitsBuffer_Device);
-    cudaFree(scene_Device);
-    cudaFree(camera_Device);
     cudaFree(rngStates_Device);
-
-
     // print_cuda_error();
     // printf("Finished rendering with CUDA\n");
 }

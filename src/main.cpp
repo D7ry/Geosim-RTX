@@ -92,6 +92,7 @@ int main() {
     Image image{window_width, window_height};
 
 #if CUDA
+    RendererCUDA::init();
     CUDAStruct::Scene scene;
     scene.cubemap = CUDAStruct::loadCubeMap("../resource/starmap_g8k.jpg");
 #else
@@ -631,6 +632,10 @@ int main() {
         return 0;
 #endif
     }
+
+#if CUDA
+    RendererCUDA::cleanup();
+#endif
 
     return 0;
 }

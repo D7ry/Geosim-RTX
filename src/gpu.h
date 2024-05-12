@@ -141,4 +141,6 @@ namespace RendererCUDA
 {
     void check_device();
     void render(const CUDAStruct::Scene* scene, const Camera* camera, Image* image);
+    void init();
+    void cleanup();
 } // namespace RendererCUDA
