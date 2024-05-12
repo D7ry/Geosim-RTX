@@ -15,6 +15,8 @@
 
 #include "util/Ray.h"
 
+#include "render_settings.h"
+
 __host__ void print_cuda_error() {
     auto err = cudaGetLastError();
     if (err) {
@@ -166,6 +168,9 @@ __device__ glm::vec3 evaluate_light_path(
             // printf("Environment light: %f, %f, %f\n", incomingLight.x,
             //        incomingLight.y, incomingLight.z);
         // }
+    }
+    if (num_hits == 0) {
+        incomingLight += BACKGROUND_COLOR;
     }
 
     // reverse iterate from the start of a path of light
@@ -589,6 +594,7 @@ __host__ void render(
     Camera* camera_Device;
     cudaMalloc(&camera_Device, sizeof(Camera));
     cudaMemcpy(camera_Device, camera, sizeof(Camera), cudaMemcpyHostToDevice);
+
 
     render_pixel<<<gridDims, blockDims>>>(
         scene_Device,

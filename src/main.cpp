@@ -143,7 +143,7 @@ int main() {
 
     if (INTERACTIVE_MODE) {
         window = new Window(
-            window_width, window_height, 1, "Rodent-Raytracer RTX"
+            window_width, window_height, window_scale, "Rodent-Raytracer RTX"
         );
     }
 
