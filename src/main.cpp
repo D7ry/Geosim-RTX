@@ -49,8 +49,6 @@ static constexpr float CAM_FAST_SPD{1.00f};
 
 static constexpr float MOUSE_SENSITIVITY{1.5f};
 
-#define CUDA_ONCE 0
-#define CUDA 1
 
 #if CUDA
 #include "gpu.h"
@@ -139,8 +137,8 @@ int main() {
     timer.restart();
 
     Window* window = nullptr;
-    const int window_width = 800;
-    const int window_height = 600;
+    const int window_width = 1280;
+    const int window_height = 720;
     const int window_scale = 1;
 
     if (INTERACTIVE_MODE) {
@@ -351,135 +349,6 @@ int main() {
 
     camera.position = {0, 0, 0};
     camera.pitch = 0;
-
-    // camera.position = { 0.887185, 0.596745, -0.756814 };
-    // camera.pitch = -0.279047;
-    // camera.yaw = 3.54052;
-
-    camera.positionHyp = {
-        0,
-        0,
-        -0.302007,
-        1.01509,
-    };
-    hypCamPosX = 0;
-    hypCamPosY = 0;
-    hypCamPosZ = -0.302007;
-    hypCamPosW = 1.01509;
-    // camera.pitch = -1.5608;
-    // camera.yaw = -4.99805;
-
-    camera.positionHyp = {
-        0.100167,
-        0,
-        0,
-        1.005,
-    };
-    hypCamPosX = 0.100167;
-    hypCamPosY = 0;
-    hypCamPosZ = 0;
-    hypCamPosW = 1.005;
-    camera.pitch = -0.00806201;
-    camera.yaw = 5.25145;
-
-    camera.positionHyp = {
-        -0.100671,
-        0,
-        0,
-        1.01509,
-    };
-    hypCamPosX = -0.100671;
-    hypCamPosY = 0;
-    hypCamPosZ = 0;
-    hypCamPosW = 1.01509;
-    camera.pitch = -0.0490776;
-    camera.yaw = 3.54051;
-
-    camera.positionHyp = {
-        -0.420647,
-        0,
-        0,
-        1.07238,
-    };
-    hypCamPosX = -0.420647;
-    hypCamPosY = 0;
-    hypCamPosZ = 0;
-    hypCamPosW = 1.07238;
-    camera.pitch = -0.0022026;
-    camera.yaw = 4.09129;
-
-    camera.positionHyp = {
-        0,
-        0.100167,
-        0,
-        1.005,
-    };
-    hypCamPosX = 0;
-    hypCamPosY = 0.100167;
-    hypCamPosZ = 0;
-    hypCamPosW = 1.005;
-    camera.pitch = 0.0446724;
-    camera.yaw = 5.38621;
-
-    camera.positionHyp = {
-        0.409801,
-        0.104248,
-        0,
-        1.04595,
-    };
-    hypCamPosX = 0.409801;
-    hypCamPosY = 0.104248;
-    hypCamPosZ = 0;
-    hypCamPosW = 1.04595;
-    camera.pitch = -0.0490776;
-    camera.yaw = 5.55027;
-
-    // camera.positionHyp = { 0.217076, 0.429383, -0.111156, 1.11528, };
-    // hypCamPosX = 0.217076;
-    // hypCamPosY = 0.429383;
-    // hypCamPosZ = -0.111156;
-    // hypCamPosW = 1.11528;
-    // camera.pitch = 0.167719;
-    // camera.yaw = 5.18699;
-
-    camera.positionHyp = {
-        -0.496761,
-        0,
-        -0.750889,
-        1.34559,
-    };
-    hypCamPosX = -0.496761;
-    hypCamPosY = 0;
-    hypCamPosZ = -0.750889;
-    hypCamPosW = 1.34559;
-    camera.pitch = 0.0583443;
-    camera.yaw = 5.36472;
-
-    camera.positionHyp = {
-        -0.887794,
-        0,
-        -0.56196,
-        1.45051,
-    };
-    hypCamPosX = -0.887794;
-    hypCamPosY = 0;
-    hypCamPosZ = -0.56196;
-    hypCamPosW = 1.45051;
-    camera.pitch = 0.0114693;
-    camera.yaw = 5.42917;
-
-    camera.positionHyp = {
-        -1.31667,
-        0,
-        1.14894,
-        2.01338,
-    };
-    hypCamPosX = -1.31667;
-    hypCamPosY = 0;
-    hypCamPosZ = 1.14894;
-    hypCamPosW = 2.01338;
-    camera.pitch = -0.0529838;
-    camera.yaw = 5.30612;
 
     camera.positionHyp = {0, 0, 0, 1};
     hypCamPosX = 0;
@@ -722,12 +591,6 @@ int main() {
                             / 256.f; // subtract so controls aren't inverted
         }
 
-        const glm::vec4 p{
-            camera.positionHyp.x,
-            camera.positionHyp.y,
-            camera.positionHyp.z,
-            camera.positionHyp.w
-        };
 
         // std::cout << "isInH3: " << Math::isH3Point(p) << " hypCamPos = {" << p.x
         //           << ", " << p.y << ", " << p.z << ", " << p.w << "}\n";
