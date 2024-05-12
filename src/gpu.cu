@@ -1,23 +1,18 @@
-#include "gpu.h"
-#include <cuda_runtime_api.h>
-#include <glm/glm.hpp>
 #include <iostream>
 #include <stdio.h>
 
+#include <cuda_runtime_api.h>
+#include <curand_kernel.h>
+#include <glm/glm.hpp>
+
 #include "Camera.h"
 #include "Image.h"
-#include "Primitive.h"
 #include "Settings.h"
-#include "util/CUDAMath.h"
-
-// #include "gpu_sdf.h"
-#include "util/Math.h"
-
-#include "util/Ray.h"
-
 #include "render_settings.h"
 
-#include <curand_kernel.h>
+#include "util/CUDAMath.h"
+
+#include "gpu.h"
 
 __host__ void print_cuda_error() {
     auto err = cudaGetLastError();
@@ -281,16 +276,8 @@ __device__ glm::vec3 evaluate_light_path(
     };
 
     if (reachedEnvironment) {
-        // if (environmentDir != glm::vec3{0}) {
-        // printf("Environment dir: %f, %f, %f\n", environmentDir.x,
-        // environmentDir.y, environmentDir.z);
-        // }
         incomingLight += environmentalLight(environmentDir, scene);
         incomingLight += sample_environment_map(environmentDir, scene);
-        // if (incomingLight != glm::vec3{0}) {
-        // printf("Environment light: %f, %f, %f\n", incomingLight.x,
-        //        incomingLight.y, incomingLight.z);
-        // }
     }
 
     // reverse iterate from the start of a path of light
@@ -306,9 +293,6 @@ __device__ glm::vec3 evaluate_light_path(
             1 // glm::max(0.f, glm::dot(hit.normal, -hit.incidentDir))
         };
 
-        // basically the rendering equation
-        // incomingLight = emittedLight + (2.f * Math::BRDF(hit) * incomingLight
-        // * lightStrength);
         incomingLight
             = emittedLight + (hit->mat_albedo * incomingLight * lightStrength);
     }
@@ -338,8 +322,6 @@ __device__ void getClosestPrimitive(
             if (d < *distance) {
                 *distance = d;
                 *closestPrimitive = sphere;
-                // printf("Closest primitive found at %f, %f, %f\n", p.x, p.y,
-                // p.z);
             }
         }
     }
@@ -414,8 +396,6 @@ __device__ bool get_closest_intersection(
     const Camera* camera,
     curandState* rngState
 ) {
-    //
-    //
     float totalDistanceTraveled = 0.0;
     const int MAX_NUM_STEPS = 8;
     const float MIN_HIT_DISTANCE = .01;
@@ -446,34 +426,15 @@ __device__ bool get_closest_intersection(
             || !CUDAMath::isH3Dir(marchPos, marchDir)) {
             // hyperbolicErrorAcc++; TODO: implement error handling
         }
-        //       //
-        //       //
         double dist = DBL_MAX;
         const CUDAStruct::SpherePrimitive* closestPrimitive = nullptr;
 
         getClosestPrimitive(marchPos, scene, &dist, &closestPrimitive);
 
-        // if (closestPrimitive == nullptr) {
-        //     printf("Boutta crash\n");
-        // }
-        //
-        //       double dist = closest.first;
-        //       // we hit something
-
         if (dist < MIN_HIT_DISTANCE) {
-            // glm::vec3 normal
-            //     = primitive.material.get()
-            //           ->albedo; // for rough quick rendering/debugging
-
-            // printf("Hit something at %f, %f, %f\n", marchPos.x,
-            // marchPos.y, marchPos.z);
-            glm::vec3 normal{0}; // TODO: implemenet normal computation
-
-            // if (!RENDER_WITH_POTATO_SETTINGS)
-            normal = computeNormal(marchPos, scene);
+            glm::vec3 normal = computeNormal(marchPos, scene);
 
             // populate intersection buffer
-
             CUDAStruct::Intersection* intersection = intersection_buffer;
             intersection->position = marchPos;
             intersection->normal = normal;
@@ -518,11 +479,6 @@ __device__ bool get_closest_intersection(
     }
 
     return false;
-    //
-    //   if (closestHit)
-    //       return true;
-    //
-    //   return false;
 }
 
 // trace a single ray and return the color
@@ -579,8 +535,6 @@ __global__ void render_pixel(
     CUDAStruct::Intersection* hitsBuffer_device,
     curandState* rngStates_device
 ) {
-    // printf("Rendering pixel. Width: %d, Height: %d, rays_per_pixel: %d,
-    // bounces_per_ray: %d\n", width, height, rays_per_pixel, bounces_per_ray);
 
     // TODO: these should be passed in as parameters
     float aspectRatio = width / height; // w : h
@@ -662,8 +616,6 @@ __host__ void render(
     const Camera* camera,
     Image* image
 ) {
-    // printf("Rendering with CUDA\n");
-    print_cuda_error();
     float aspectRatio = (float)image->width / image->height; // w : h
 
     // todo figure out why FOV seems "off"
@@ -704,7 +656,6 @@ __host__ void render(
             * sizeof(CUDAStruct::Intersection)
     ); // each ray (bounce) needs to store its hit
 
-
     render_pixel<<<gridDims, blockDims>>>(
         width,
         height,
@@ -725,12 +676,10 @@ __host__ void render(
         width * height * sizeof(glm::vec3),
         cudaMemcpyDeviceToHost
     );
-    // TODO: no need to free every iteration, free when cleaning up
+
     cudaFree(frameBuffer_Device);
     cudaFree(hitsBuffer_Device);
     cudaFree(rngStates_Device);
-    // print_cuda_error();
-    // printf("Finished rendering with CUDA\n");
 }
 
 } // namespace RendererCUDA
