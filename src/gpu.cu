@@ -389,10 +389,7 @@ __device__ bool get_closest_intersection(
     CUDAStruct::Intersection*
         intersection_buffer, // can directly store the intersection into
     const CUDAStruct::Scene* scene,
-    float hypCamPosX,
-    float hypCamPosY,
-    float hypCamPosZ,
-    float hypCamPosW,
+    const Camera* camera,
     curandState* rngState
 ) {
     //
@@ -408,7 +405,7 @@ __device__ bool get_closest_intersection(
         CUDAMath::constructHyperboloidPoint(ray_origin, glm::length(ray_origin))
     };
 
-    const glm::vec4 p{hypCamPosX, hypCamPosY, hypCamPosZ, hypCamPosW};
+    const glm::vec4 p = camera->positionHyp;
     //
     // generate direction then transform to hyperboloid
     const glm::vec4 hyperbolicPos{
@@ -512,10 +509,7 @@ __device__ glm::vec3 trace_ray(
                                               // num_bounces intersection
     int num_bounces,
     const CUDAStruct::Scene* scene,
-    float hypCamPosX,
-    float hypCamPosY,
-    float hypCamPosZ,
-    float hypCamPosW,
+    const Camera* camera,
     curandState* rngState
 ) {
 
@@ -530,10 +524,7 @@ __device__ glm::vec3 trace_ray(
             direction,
             hitsBuffer_bounce,
             scene,
-            hypCamPosX,
-            hypCamPosY,
-            hypCamPosZ,
-            hypCamPosW,
+            camera,
             rngState
         );
 
@@ -567,11 +558,7 @@ __global__ void render_pixel(
     int bounces_per_ray,
     glm::vec3* frameBuffer_device,
     CUDAStruct::Intersection* hitsBuffer_device,
-    curandState* rngStates_device,
-    float hypCamPosX,
-    float hypCamPosY,
-    float hypCamPosZ,
-    float hypCamPosW
+    curandState* rngStates_device
 ) {
     // printf("Rendering pixel. Width: %d, Height: %d, rays_per_pixel: %d,
     // bounces_per_ray: %d\n", width, height, rays_per_pixel, bounces_per_ray);
@@ -635,10 +622,7 @@ __global__ void render_pixel(
             hitsBuffer_ray,
             bounces_per_ray,
             scene,
-            hypCamPosX,
-            hypCamPosY,
-            hypCamPosZ,
-            hypCamPosW,
+            camera,
             &rngState
         );
 
@@ -714,13 +698,7 @@ __host__ void render(
         MAX_NUM_BOUNCES,
         frameBuffer_Device,
         hitsBuffer_Device,
-        rngStates_Device,
-        // FIXME: these values shouldn't be passed as params, instead store them
-        // in camera
-        hypCamPosX,
-        hypCamPosY,
-        hypCamPosZ,
-        hypCamPosW
+        rngStates_Device
     );
 
     cudaDeviceSynchronize();
