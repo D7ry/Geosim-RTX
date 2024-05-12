@@ -52,72 +52,6 @@ static constexpr float MOUSE_SENSITIVITY{1.5f};
 
 #if CUDA
 #include "gpu.h"
-
-void testCuda() {
-    // CudaPlayground::play();
-    Camera cam_;
-    Image img_{1920, 1080};
-    CUDAStruct::Scene scene;
-
-    // add object
-    CUDAStruct::Geometry snowman;
-    CUDAStruct::SpherePrimitive head;
-
-    // lightMat->albedo = {1, 1, 1};
-    // lightMat->roughness = .5;
-    // lightMat->emissionStrength = .5;
-    // lightMat->emissionColor = {1, .9, .8};
-    head.position = {0.f, 1.f, 0.f};
-    head.radius = 1.2;
-    head.mat_albedo = {1, 1, 1};
-    head.mat_albedo = {0, 1, 0};
-    head.mat_emissionStrength = .5;
-    head.mat_emissionColor = {1, .9, .8};
-
-    snowman.add(head);
-
-    scene.add(snowman);
-    //
-    // Sphere middle;
-    // middle.position = {0.f, 0.f, 0.f};
-    // middle.radius = 1.5;
-    //
-    // Sphere bottom;
-    // bottom.position = {0.f, -1.1f, 0.f};
-    // bottom.radius = 1.8;
-    //
-    // // assign materials
-    // head.material = lightMat;
-    // middle.material = lightMat;
-    // bottom.material = lightMat;
-    //
-    // head.material = lightMat;
-    // middle.material = greenMat;
-    // bottom.material = redMat;
-    //
-    // // add primitives to object
-    // snowmanObject.add(head);
-    // snowmanObject.add(middle);
-    // snowmanObject.add(bottom);
-    //
-    // // add one instance of obj to scene
-    // snowmanObject.position = {-2, 0, 0};
-    // scene.add(snowmanObject);
-
-    // reset all pixels
-    for (auto& p : img_.pixels)
-        p = {0, 0, 0};
-
-    RendererCUDA::render(&scene, &cam_, &img_);
-    // check pixel color
-    for (auto& p : img_.pixels) {
-        if (p != glm::vec3{0, 0, 0}) {
-            std::cout << "pixel color: " << p.r << ' ' << p.g << ' ' << p.b
-                      << '\n';
-        }
-    }
-}
-
 #endif
 
 int main() {
@@ -245,6 +179,7 @@ int main() {
     if (true) {
 #if CUDA
         using Geometry = CUDAStruct::Geometry;
+        using Plane = CUDAStruct::PlanePrimitive;
         using Sphere = CUDAStruct::SpherePrimitive;
 
         Geometry object;
@@ -281,10 +216,20 @@ int main() {
         watermelon2.mat_emissionColor = {1, 1, 1};
         watermelon2.mat_emissionStrength = 0.5;
 
+        //DOESN"T WORK"
+        // Plane floor;
+        // floor.mat_albedo = {0.6f, 0.6f, 1.f};
+        // floor.mat_roughness = .1;
+        // floor.position = {0, 0, 0};
+        // floor.normal = {0, 0, 0, 0};
+        // floor.size = {1, 1, 1};
+        //
+
         object.add(mirror);
         object.add(tomato);
         object.add(watermelon);
         object.add(watermelon2);
+
 
         object.position = {0, 0, -1.5};
         scene.add(object);
