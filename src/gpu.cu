@@ -167,7 +167,6 @@ __device__ void getClosestPrimitive(
     double* distance,
     const CUDAStruct::SpherePrimitive** closestPrimitive
 ) {
-    double minDistance{100000000};
     // TODO: refactor scene's data structure to be CUDA-compatible
 
     for (int i = 0; i < scene->num_geometries; i++) {
@@ -179,8 +178,8 @@ __device__ void getClosestPrimitive(
             const CUDAStruct::SpherePrimitive* sphere = object->spheres + j;
             const double d
                 = CUDAStruct::SpherePrimitive_SDF(sphere, p, objHypPos);
-            if (d < minDistance) {
-                minDistance = glm::min(minDistance, d);
+            if (d < *distance) {
+                *distance = d;
                 *closestPrimitive = sphere;
                 // printf("Closest primitive found at %f, %f, %f\n", p.x, p.y,
                 // p.z);
@@ -236,7 +235,7 @@ __device__ bool get_closest_intersection(
         }
         //       //
         //       //
-        double dist = 0;
+        double dist = 9999999999;
         const CUDAStruct::SpherePrimitive* closestPrimitive = nullptr;
 
         getClosestPrimitive(marchPos, scene, &dist, &closestPrimitive);
