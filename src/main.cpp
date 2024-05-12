@@ -49,7 +49,7 @@ static constexpr float CAM_FAST_SPD{1.00f};
 
 static constexpr float MOUSE_SENSITIVITY{1.5f};
 
-#define CUDA_ONCE 1
+#define CUDA_ONCE 0
 #define CUDA 1
 
 #if CUDA
@@ -280,9 +280,9 @@ int main() {
         watermelon2.mat_emissionColor = {1, 1, 1};
         watermelon2.mat_emissionStrength = 0.5;
 
-        object.add(mirror);
-        object.add(tomato);
-        object.add(watermelon);
+        // object.add(mirror);
+        // object.add(tomato);
+        // object.add(watermelon);
         object.add(watermelon2);
 
         object.position = {0, 0, -1.5};

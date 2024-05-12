@@ -44,7 +44,8 @@ void play() {
 }
 } // namespace CudaPlayground
 
-namespace CUDAStruct {
+namespace CUDAStruct
+{
 
 inline __device__ double SpherePrimitive_SDF(
     const SpherePrimitive* sphere,
@@ -67,7 +68,7 @@ inline __device__ double SpherePrimitive_SDF(
 
     return dist;
 }
-}
+} // namespace CUDAStruct
 
 namespace RendererCUDA
 {
@@ -141,8 +142,8 @@ __device__ glm::vec3 evaluate_light_path(
         const CUDAStruct::Intersection* hit = hits + i;
 
         // light emitted from hit surface
-        const glm::vec3 emittedLight = hit->mat_emissionStrength
-                                       * hit->mat_emissionColor;
+        const glm::vec3 emittedLight
+            = hit->mat_emissionStrength * hit->mat_emissionColor;
 
         // cos(theta) term
         const float lightStrength{
@@ -152,8 +153,8 @@ __device__ glm::vec3 evaluate_light_path(
         // basically the rendering equation
         // incomingLight = emittedLight + (2.f * Math::BRDF(hit) * incomingLight
         // * lightStrength);
-        incomingLight = emittedLight
-                        + (hit->mat_albedo * incomingLight * lightStrength);
+        incomingLight
+            = emittedLight + (hit->mat_albedo * incomingLight * lightStrength);
     }
 
     return incomingLight;
@@ -164,7 +165,7 @@ __device__ void getClosestPrimitive(
     const glm::vec4& p,
     const CUDAStruct::Scene* scene,
     double* distance,
-    const CUDAStruct::SpherePrimitive* closestPrimitive
+    const CUDAStruct::SpherePrimitive** closestPrimitive
 ) {
     double minDistance{100000000};
     // TODO: refactor scene's data structure to be CUDA-compatible
@@ -180,8 +181,9 @@ __device__ void getClosestPrimitive(
                 = CUDAStruct::SpherePrimitive_SDF(sphere, p, objHypPos);
             if (d < minDistance) {
                 minDistance = glm::min(minDistance, d);
-                closestPrimitive = sphere;
-                // printf("Closest primitive found at %f, %f, %f\n", p.x, p.y, p.z);
+                *closestPrimitive = sphere;
+                // printf("Closest primitive found at %f, %f, %f\n", p.x, p.y,
+                // p.z);
             }
         }
     }
@@ -237,34 +239,42 @@ __device__ bool get_closest_intersection(
         double dist = 0;
         const CUDAStruct::SpherePrimitive* closestPrimitive = nullptr;
 
-        getClosestPrimitive(marchPos, scene, &dist, closestPrimitive);
+        getClosestPrimitive(marchPos, scene, &dist, &closestPrimitive);
+
+        // if (closestPrimitive == nullptr) {
+        //     printf("Boutta crash\n");
+        // }
         //
         //       double dist = closest.first;
         //       // we hit something
+
         if (dist < MIN_HIT_DISTANCE) {
             // glm::vec3 normal
             //     = primitive.material.get()
             //           ->albedo; // for rough quick rendering/debugging
 
-            // printf("Hit something at %f, %f, %f\n", marchPos.x, marchPos.y, marchPos.z);
+            // printf("Hit something at %f, %f, %f\n", marchPos.x,
+            // marchPos.y, marchPos.z);
             glm::vec3 normal{0}; // TODO: implemenet normal computation
-            
 
             // if (!RENDER_WITH_POTATO_SETTINGS)
-                // normal = computeNormal(marchPos, scene);
+            // normal = computeNormal(marchPos, scene);
 
             // populate intersection buffer
+
             CUDAStruct::Intersection* intersection = intersection_buffer;
             intersection->position = marchPos;
             intersection->normal = normal;
+
+
             intersection->mat_albedo = closestPrimitive->mat_albedo;
-            intersection->mat_emissionColor = closestPrimitive->mat_emissionColor;
-            intersection->mat_emissionStrength = closestPrimitive->mat_emissionStrength;
+            intersection->mat_emissionColor
+                = closestPrimitive->mat_emissionColor;
+            intersection->mat_emissionStrength
+                = closestPrimitive->mat_emissionStrength;
             intersection->mat_roughness = closestPrimitive->mat_roughness;
 
             return true;
-
-
         } else if (!CUDAMath::isH3Point(marchPos) 
                 || !CUDAMath::isH3Dir(marchPos, marchDir) 
                 || totalDistanceTraveled + dist > MAX_TRACE_DISTANCE 
@@ -279,7 +289,9 @@ __device__ bool get_closest_intersection(
                 glm::vec4 new_dir;
 
                 // march the ray forward
-                CUDAMath::geodesicFlowHyperbolic(marchPos, marchDir, ss, &new_pos, &new_dir);
+                CUDAMath::geodesicFlowHyperbolic(
+                    marchPos, marchDir, ss, &new_pos, &new_dir
+                );
 
                 marchPos = CUDAMath::correctH3Point(new_pos);
                 marchDir = CUDAMath::correctDirection(marchPos, new_dir);
@@ -288,6 +300,7 @@ __device__ bool get_closest_intersection(
             }
         }
     }
+    printf("No hit\n");
 
     return false;
     //
@@ -301,8 +314,8 @@ __device__ bool get_closest_intersection(
 __device__ glm::vec3 trace_ray(
     glm::vec3 origin,
     glm::vec3 direction,
-    CUDAStruct::Intersection* hitsBuffer_ray, // guaranteed to allow for storing num_bounces
-                                  // intersection
+    CUDAStruct::Intersection* hitsBuffer_ray, // guaranteed to allow for storing
+                                              // num_bounces intersection
     int num_bounces,
     const CUDAStruct::Scene* scene,
     float hypCamPosX,
@@ -363,7 +376,8 @@ __global__ void render_pixel(
     float hypCamPosZ,
     float hypCamPosW
 ) {
-    // printf("Rendering pixel. Width: %d, Height: %d, rays_per_pixel: %d, bounces_per_ray: %d\n", width, height, rays_per_pixel, bounces_per_ray);
+    // printf("Rendering pixel. Width: %d, Height: %d, rays_per_pixel: %d,
+    // bounces_per_ray: %d\n", width, height, rays_per_pixel, bounces_per_ray);
 
     // TODO: these should be passed in as parameters
     float aspectRatio = width / height; // w : h
@@ -413,7 +427,8 @@ __global__ void render_pixel(
         dir = glm::normalize(dir);
         dir = dir * camera->viewMat;
 
-        CUDAStruct::Intersection* hitsBuffer_ray = hitsBuffer_pixel + (i * bounces_per_ray);
+        CUDAStruct::Intersection* hitsBuffer_ray
+            = hitsBuffer_pixel + (i * bounces_per_ray);
 
         glm::vec3 color = trace_ray(
             start,
@@ -469,7 +484,8 @@ __host__ void render(
     CUDAStruct::Intersection* hitsBuffer_Device;
     cudaMalloc(
         &hitsBuffer_Device,
-        width * height * RAYS_PER_PIXEL * MAX_NUM_BOUNCES * sizeof(CUDAStruct::Intersection)
+        width * height * RAYS_PER_PIXEL * MAX_NUM_BOUNCES
+            * sizeof(CUDAStruct::Intersection)
     ); // each ray (bounce) needs to store its hit
 
     // allocate mem for cudascene
@@ -482,9 +498,7 @@ __host__ void render(
     // allocate camera
     Camera* camera_Device;
     cudaMalloc(&camera_Device, sizeof(Camera));
-    cudaMemcpy(
-        camera_Device, camera, sizeof(Camera), cudaMemcpyHostToDevice
-    );
+    cudaMemcpy(camera_Device, camera, sizeof(Camera), cudaMemcpyHostToDevice);
 
     render_pixel<<<gridDims, blockDims>>>(
         scene_Device,
