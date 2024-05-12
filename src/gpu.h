@@ -26,7 +26,7 @@ struct CubeMap {
 };
 
 // load up a cubemap into GPU memory
-CubeMap* loadCubeMap(const char* filename);
+CubeMap* load_cube_map(const char* filename);
 
 struct Intersection
 {

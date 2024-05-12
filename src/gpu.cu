@@ -46,7 +46,7 @@ void play() {
 namespace CUDAStruct
 {
 
-__host__ CubeMap* loadCubeMap(const char* filename) {
+__host__ CubeMap* load_cube_map(const char* filename) {
     int channels;
     int width, height;
     unsigned char* img
@@ -177,7 +177,7 @@ void check_device() {
 
 #define PI 3.14159265359f
 
-__device__ glm::vec3 environmentalLight(
+__device__ glm::vec3 environment_light(
     const glm::vec3& dir,
     const CUDAStruct::Scene* scene
 ) {
@@ -216,7 +216,7 @@ __device__ glm::vec3 environmentalLight(
 }
 
 // entirely written by chatgipidy
-__device__ glm::vec2 DirectionToEnvMapCoords(const glm::vec3& direction) {
+__device__ glm::vec2 direction_to_environment_map_uv(const glm::vec3& direction) {
     // Convert direction to spherical coordinates
     float longitude = atan2(
         direction.z, direction.x
@@ -241,7 +241,7 @@ __device__ glm::vec3 sample_environment_map(
     const glm::vec3& dir,
     const CUDAStruct::Scene* scene
 ) {
-    glm::vec2 directionUV = DirectionToEnvMapCoords(dir);
+    glm::vec2 directionUV = direction_to_environment_map_uv(dir);
 
     int index
         = (int)(directionUV.y * scene->cubemap->height) * scene->cubemap->width
@@ -274,7 +274,7 @@ __device__ glm::vec3 evaluate_light_path(
     };
 
     if (reachedEnvironment) {
-        incomingLight += environmentalLight(environmentDir, scene);
+        incomingLight += environment_light(environmentDir, scene);
         incomingLight += sample_environment_map(environmentDir, scene);
     }
 
@@ -301,7 +301,7 @@ __device__ glm::vec3 evaluate_light_path(
 }
 
 // TODO: no kd tree traversal yet
-__device__ void getClosestPrimitive(
+__device__ void get_closest_primitive(
     const glm::vec4& p,
     const CUDAStruct::Scene* scene,
     double* distance,
@@ -325,7 +325,7 @@ __device__ void getClosestPrimitive(
     }
 }
 
-__device__ double getClosestDistance(
+__device__ double get_closest_distance(
     const glm::vec4& p,
     const CUDAStruct::Scene* scene
 ) {
@@ -346,7 +346,7 @@ __device__ double getClosestDistance(
     return minDistance;
 }
 
-__device__ glm::vec3 computeNormal(
+__device__ glm::vec3 compute_normal(
     const glm::vec4& p,
     const CUDAStruct::Scene* scene
 ) {
@@ -368,12 +368,12 @@ __device__ glm::vec3 computeNormal(
     );
 
     // Compute gradients using finite differences
-    float xGradient = getClosestDistance(p + EPSILON * basis_x, scene)
-                      - getClosestDistance(p - EPSILON * basis_x, scene);
-    float yGradient = getClosestDistance(p + EPSILON * basis_y, scene)
-                      - getClosestDistance(p - EPSILON * basis_y, scene);
-    float zGradient = getClosestDistance(p + EPSILON * basis_z, scene)
-                      - getClosestDistance(p - EPSILON * basis_z, scene);
+    float xGradient = get_closest_distance(p + EPSILON * basis_x, scene)
+                      - get_closest_distance(p - EPSILON * basis_x, scene);
+    float yGradient = get_closest_distance(p + EPSILON * basis_y, scene)
+                      - get_closest_distance(p - EPSILON * basis_y, scene);
+    float zGradient = get_closest_distance(p + EPSILON * basis_z, scene)
+                      - get_closest_distance(p - EPSILON * basis_z, scene);
 
     // Construct the normal vector
     glm::vec4 normal = CUDAMath::hypNormalize(
@@ -427,10 +427,10 @@ __device__ bool get_closest_intersection(
         double dist = DBL_MAX;
         const CUDAStruct::SpherePrimitive* closestPrimitive = nullptr;
 
-        getClosestPrimitive(marchPos, scene, &dist, &closestPrimitive);
+        get_closest_primitive(marchPos, scene, &dist, &closestPrimitive);
 
         if (dist < MIN_HIT_DISTANCE) {
-            glm::vec3 normal = computeNormal(marchPos, scene);
+            glm::vec3 normal = compute_normal(marchPos, scene);
 
             // populate intersection buffer
             CUDAStruct::Intersection* intersection = intersection_buffer;

@@ -95,7 +95,7 @@ int main() {
 #if CUDA
     RendererCUDA::init();
     CUDAStruct::Scene scene;
-    scene.cubemap = CUDAStruct::loadCubeMap("../resource/starmap_g8k.jpg");
+    scene.cubemap = CUDAStruct::load_cube_map("../resource/starmap_g8k.jpg");
 
     Rotor rotor;
 #else
