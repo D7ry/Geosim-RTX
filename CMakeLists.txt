@@ -30,6 +30,7 @@ add_executable(
     src/gpu.cu
     src/Camera.cpp
     src/Image.cpp
+    src/Rotor.cpp
 )
 
 

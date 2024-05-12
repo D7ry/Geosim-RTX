@@ -81,9 +81,7 @@ __host__ CubeMap* loadCubeMap(const char* filename) {
     free(colors);
     free(img);
     free(cubeMap);
-
     return cubeMapDevice;
-    stbi_image_free(img);
 }
 
 inline __device__ double SpherePrimitive_SDF(
@@ -101,7 +99,7 @@ inline __device__ double SpherePrimitive_SDF(
 
     const float dist = CUDAMath::hyperbolicSphereSDF(
         p, // todo: is w supposed to be 0?
-        sphere->radius_dynamic,
+        sphere->radius,
         hyperbolicPosition
     );
 

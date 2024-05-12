@@ -64,7 +64,6 @@ struct SpherePrimitive
     glm::vec3 position{0.f}; // local space
     float radius{1.f};
 
-    float radius_dynamic{1.f};
 };
 
 struct Geometry
@@ -83,7 +82,8 @@ struct Geometry
             throw std::runtime_error("Max primitives reached");
             return;
         }
-        spheres[num_spheres++] = p;
+        spheres[num_spheres] = p;
+        num_spheres++;
     }
 };
 
@@ -102,7 +102,8 @@ struct Scene
             throw std::runtime_error("Max geometries reached");
             return;
         }
-        geometries[num_geometries++] = object;
+        geometries[num_geometries] = object;
+        num_geometries++;
     }
 
     void tick(float delta_time) {
