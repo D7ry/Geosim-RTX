@@ -67,6 +67,7 @@ struct Geometry
     void add(const SpherePrimitive& p) {
         if (num_spheres >= MAX_PRIMITIVES) {
             printf("Max primitives reached\n");
+            throw std::runtime_error("Max primitives reached");
             return;
         }
         spheres[num_spheres++] = p;
@@ -77,12 +78,13 @@ struct Geometry
 
 struct Scene
 {
-    Geometry geometries[MAX_GEOMETRY];
+    CUDAStruct::Geometry geometries[MAX_GEOMETRY];
     size_t num_geometries{0};
 
-    void add(const Geometry& object) {
+    void add(const CUDAStruct::Geometry& object) {
         if (num_geometries >= MAX_GEOMETRY) {
             printf("Max geometries reached\n");
+            throw std::runtime_error("Max geometries reached");
             return;
         }
         geometries[num_geometries++] = object;

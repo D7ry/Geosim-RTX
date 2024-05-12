@@ -15,6 +15,14 @@
 
 #include "util/Ray.h"
 
+__host__ void print_cuda_error() {
+    auto err = cudaGetLastError();
+    if (err) {
+        auto err_str = cudaGetErrorString(err);
+        printf("Last CUDA Error: %s\n", err_str);
+    }
+}
+
 namespace CudaPlayground
 {
 __global__ void cudaHello() {
@@ -297,6 +305,7 @@ __device__ glm::vec3 trace_ray(
     float hypCamPosZ,
     float hypCamPosW
 ) {
+
     int num_hits = 0;
     for (int i = 0; i < num_bounces; i++) {
         CUDAStruct::Intersection* hitsBuffer_bounce
@@ -318,6 +327,7 @@ __device__ glm::vec3 trace_ray(
         if (!hit) {
             break;
         }
+        printf("Hit something\n");
 
         // update ray origin and direction
         origin
@@ -349,6 +359,7 @@ __global__ void render_pixel(
     float hypCamPosZ,
     float hypCamPosW
 ) {
+    // printf("Rendering pixel. Width: %d, Height: %d, rays_per_pixel: %d, bounces_per_ray: %d\n", width, height, rays_per_pixel, bounces_per_ray);
 
     // TODO: these should be passed in as parameters
     float aspectRatio = width / height; // w : h
@@ -357,6 +368,13 @@ __global__ void render_pixel(
 
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    // check if out of bounds
+    if (x >= width || y >= height) {
+        return;
+    }
+
+    // printf("Rendering pixel at x: %d, y: %d\n", x, y);
 
     CUDAStruct::Intersection* hitsBuffer_pixel
         = hitsBuffer_device
@@ -411,7 +429,7 @@ __global__ void render_pixel(
     final_color /= RAYS_PER_PIXEL;
 
     { // writeback to framebuffer
-        int frameBufferIndex = pixelCoord.x + (pixelCoord.y * width);
+        int frameBufferIndex = x + (y * width);
         frameBuffer_device[frameBufferIndex] = final_color;
     }
 }
@@ -421,6 +439,8 @@ __host__ void render(
     const Camera* camera,
     Image* image
 ) {
+    // printf("Rendering with CUDA\n");
+    print_cuda_error();
     float aspectRatio = (float)image->width / image->height; // w : h
 
     // todo figure out why FOV seems "off"
@@ -438,7 +458,8 @@ __host__ void render(
     // allocate FB
     glm::vec3* frameBuffer = image->pixels.data();
     glm::vec3* frameBuffer_Device;
-    cudaMalloc(&frameBuffer_Device, width * height * sizeof(glm::vec3));
+    size_t frameBuffer_size = width * height;
+    cudaMalloc(&frameBuffer_Device, frameBuffer_size * sizeof(glm::vec3));
 
     // allocate buffer to store intersections data
     CUDAStruct::Intersection* hitsBuffer_Device;
@@ -454,9 +475,16 @@ __host__ void render(
         scene_Device, scene, sizeof(CUDAStruct::Scene), cudaMemcpyHostToDevice
     );
 
+    // allocate camera
+    Camera* camera_Device;
+    cudaMalloc(&camera_Device, sizeof(Camera));
+    cudaMemcpy(
+        camera_Device, camera, sizeof(Camera), cudaMemcpyHostToDevice
+    );
+
     render_pixel<<<gridDims, blockDims>>>(
         scene_Device,
-        camera,
+        camera_Device,
         width,
         height,
         RAYS_PER_PIXEL,
@@ -482,6 +510,10 @@ __host__ void render(
     cudaFree(frameBuffer_Device);
     cudaFree(hitsBuffer_Device);
     cudaFree(scene_Device);
+    cudaFree(camera_Device);
+
+    print_cuda_error();
+    // printf("Finished rendering with CUDA\n");
 }
 
 } // namespace RendererCUDA

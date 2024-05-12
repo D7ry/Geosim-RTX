@@ -5,6 +5,7 @@
 /.cache
 
 # building
+/debug
 /Debug
 /Release
 /x64

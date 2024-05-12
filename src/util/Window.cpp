@@ -111,8 +111,9 @@ const sf::Vector2u& Window::getDim() const
 
 void Window::onResize()
 {
-    unsigned width{  getDim().x  };
-    unsigned height{ getDim().y };
+    auto dim = this->window.getSize();
+    unsigned width{  dim.x  };
+    unsigned height{ dim.y };
 
     buffer.create(width / scale, height / scale);
     
