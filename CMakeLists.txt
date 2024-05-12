@@ -37,6 +37,7 @@ set(SFML_LIBRARIES sfml-graphics sfml-window sfml-system)
 
 target_include_directories(rodent_raytracer PUBLIC ${SFML_INCLUDE_DIRS})
 target_link_libraries(rodent_raytracer PRIVATE ${SFML_LIBRARIES} ${SFML_DEPENDENCIES})
+target_precompile_headers(rodent_raytracer PRIVATE src/PCH.h)
 
 
 # CUDA stuff
