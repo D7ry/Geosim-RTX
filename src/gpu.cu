@@ -68,6 +68,24 @@ inline __device__ double SpherePrimitive_SDF(
 
     return dist;
 }
+
+__device__ glm::vec3 intersection_evaluate_outgoing(const CUDAStruct::Intersection* intersection)
+{
+    glm::vec3 outgoing{ 0.f };
+
+    //if (reflected)
+    {
+        const glm::vec3 lambert{ CUDAMath::randomHemisphereDir(0, intersection->normal) };
+        const glm::vec3 mirror{ glm::reflect(intersection->incidentDir, intersection->normal) };
+
+        outgoing = CUDAMath::lerp(intersection->mat_roughness, mirror, lambert);
+    }
+    //else // light diffused or refracted
+    {
+    }
+
+    return outgoing;
+}
 } // namespace CUDAStruct
 
 namespace RendererCUDA
@@ -112,6 +130,8 @@ __device__ glm::vec3 environmentalLight(const glm::vec3& dir) {
     const glm::vec3 lightColor
         = CUDAMath::lerp(interpolation, sunsetColor, noonColor);
 
+    auto light_intensity = glm::dot(lightDir, dir);
+
     glm::vec3 light{glm::max(0.f, glm::dot(lightDir, dir)) * lightColor};
 
     return light;
@@ -123,6 +143,9 @@ __device__ glm::vec3 evaluate_light_path(
     int num_hits
 ) {
 
+    if (num_hits != 0) {
+        // printf("Num hits: %d\n", num_hits);
+    }
     glm::vec3 incomingLight{0};
 
     // if ray bounced off a surface and never hit anything after
@@ -134,7 +157,15 @@ __device__ glm::vec3 evaluate_light_path(
     };
 
     if (reachedEnvironment) {
+        // if (environmentDir != glm::vec3{0}) {
+            // printf("Environment dir: %f, %f, %f\n", environmentDir.x,
+                   // environmentDir.y, environmentDir.z);
+        // }
         incomingLight += environmentalLight(environmentDir);
+        // if (incomingLight != glm::vec3{0}) {
+            // printf("Environment light: %f, %f, %f\n", incomingLight.x,
+            //        incomingLight.y, incomingLight.z);
+        // }
     }
 
     // reverse iterate from the start of a path of light
@@ -157,6 +188,8 @@ __device__ glm::vec3 evaluate_light_path(
             = emittedLight + (hit->mat_albedo * incomingLight * lightStrength);
     }
 
+    // printf("Incoming light: %f, %f, %f\n", incomingLight.x, incomingLight.y,
+    //        incomingLight.z);
     return incomingLight;
 }
 
@@ -167,7 +200,6 @@ __device__ void getClosestPrimitive(
     double* distance,
     const CUDAStruct::SpherePrimitive** closestPrimitive
 ) {
-    // TODO: refactor scene's data structure to be CUDA-compatible
 
     for (int i = 0; i < scene->num_geometries; i++) {
         const CUDAStruct::Geometry* object = scene->geometries + i;
@@ -186,6 +218,64 @@ __device__ void getClosestPrimitive(
             }
         }
     }
+}
+
+__device__ double getClosestDistance(
+    const glm::vec4& p,
+    const CUDAStruct::Scene* scene
+) {
+    double minDistance{1000000};
+    for (int i = 0; i < scene->num_geometries; i++) {
+        const CUDAStruct::Geometry* object = scene->geometries + i;
+        const glm::vec4 objHypPos{CUDAMath::constructHyperboloidPoint(
+            object->position, glm::length(object->position)
+        )};
+
+        for (int j = 0; j < object->num_spheres; j++) {
+            const CUDAStruct::SpherePrimitive* sphere = object->spheres + j;
+            const double d
+                = CUDAStruct::SpherePrimitive_SDF(sphere, p, objHypPos);
+            minDistance = glm::min(minDistance, d);
+        }
+    }
+    return minDistance;
+}
+
+__device__ glm::vec3 computeNormal(
+    const glm::vec4& p,
+    const CUDAStruct::Scene* scene
+) {
+
+    static constexpr float EPSILON{0.001f};
+    // hyperbolic normalization
+    // Compute basis vectors for the tangent hyperplane at p
+    glm::vec4 basis_x = CUDAMath::hypNormalize(glm::vec4(p.w, 0.0f, 0.0f, p.x));
+    glm::vec4 basis_y = glm::vec4(0.0f, p.w, 0.0f, p.y);
+    glm::vec4 basis_z = glm::vec4(0.0f, 0.0f, p.w, p.z);
+
+    // Gram-Schmidt orthogonalization
+    basis_y = CUDAMath::hypNormalize(
+        basis_y - CUDAMath::hypDot(basis_y, basis_x) * basis_x
+    );
+    basis_z = CUDAMath::hypNormalize(
+        basis_z - CUDAMath::hypDot(basis_z, basis_x) * basis_x
+        - CUDAMath::hypDot(basis_z, basis_y) * basis_y
+    );
+
+    // Compute gradients using finite differences
+    float xGradient = getClosestDistance(p + EPSILON * basis_x, scene)
+                      - getClosestDistance(p - EPSILON * basis_x, scene);
+    float yGradient = getClosestDistance(p + EPSILON * basis_y, scene)
+                      - getClosestDistance(p - EPSILON * basis_y, scene);
+    float zGradient = getClosestDistance(p + EPSILON * basis_z, scene)
+                      - getClosestDistance(p - EPSILON * basis_z, scene);
+
+    // Construct the normal vector
+    glm::vec4 normal = CUDAMath::hypNormalize(
+        xGradient * basis_x + yGradient * basis_y + zGradient * basis_z
+    );
+
+    return normal;
 }
 
 // Get the closest intersection, returns true if hit something and stores the
@@ -257,14 +347,15 @@ __device__ bool get_closest_intersection(
             glm::vec3 normal{0}; // TODO: implemenet normal computation
 
             // if (!RENDER_WITH_POTATO_SETTINGS)
-            // normal = computeNormal(marchPos, scene);
+            normal = computeNormal(marchPos, scene);
 
             // populate intersection buffer
 
             CUDAStruct::Intersection* intersection = intersection_buffer;
             intersection->position = marchPos;
             intersection->normal = normal;
-
+            intersection->incidentDir = ray_dir;
+            intersection->outgoingDir = CUDAStruct::intersection_evaluate_outgoing(intersection);
 
             intersection->mat_albedo = closestPrimitive->mat_albedo;
             intersection->mat_emissionColor
@@ -346,14 +437,15 @@ __device__ glm::vec3 trace_ray(
 
         // update ray origin and direction
         origin
-            = hitsBuffer_bounce->position + hitsBuffer_ray->outgoingDir * 0.02f;
+            = hitsBuffer_bounce->position + hitsBuffer_bounce->outgoingDir * 0.02f;
         direction = hitsBuffer_bounce->outgoingDir;
 
         num_hits++;
     }
 
+    CUDAStruct::Intersection* hits = hitsBuffer_ray;
     const glm::vec3 finalColor{
-        evaluate_light_path(origin, hitsBuffer_ray, num_hits)
+        evaluate_light_path(origin, hits, num_hits)
     };
 
     return finalColor;

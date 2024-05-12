@@ -265,17 +265,17 @@ int main() {
 
         mirror.mat_albedo = {1, 1, 1};
         mirror.mat_roughness = 0;
-        mirror.mat_emissionColor = {1, 1, 1};
+        mirror.mat_emissionColor = {0, 1, 1};
         mirror.mat_emissionStrength = 0.5;
 
         tomato.mat_albedo = {1, 0, 0};
         tomato.mat_roughness = 0.5;
-        tomato.mat_emissionColor = {1, 1, 1};
+        tomato.mat_emissionColor = {1, 0, 1};
         tomato.mat_emissionStrength = 0.5;
 
         watermelon.mat_albedo = {0, 1, 0};
         watermelon.mat_roughness = 1;
-        watermelon.mat_emissionColor = {1, 1, 1};
+        watermelon.mat_emissionColor = {1, 1, 0};
         watermelon.mat_emissionStrength = 0.5;
 
         watermelon2.mat_albedo = {0, 1, 0};

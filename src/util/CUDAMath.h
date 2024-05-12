@@ -140,4 +140,28 @@ __device__ glm::vec4 correctH3Point(const glm::vec4 p) {
         return p;
 }
 
+__device__ glm::vec3 randomGlmVec3(unsigned state)
+{
+	return glm::vec3(rng(state<<0), rng(state+1<<1), rng(state+2<<2));
+}
+
+__device__ glm::vec3 randomHemisphereDir(unsigned state, const glm::vec3& dir)
+{
+	// take random direction in on a sphere (here my distribution isn't uniform :P)
+	// FIXME: make uniform distribution
+	const glm::vec3 randDirection{ 
+		glm::normalize((randomGlmVec3(state) * 2.f) - 1.f )
+	};
+
+	const bool inWrongHemisphere = glm::dot(randDirection, dir) < 0;
+
+	// if the random direction is in the wrong hemisphere
+	if (inWrongHemisphere) {
+		return -randDirection;	// flip it to the other hemisphere
+    }
+
+	// otherwise its fine
+	return randDirection;
+}
+
 } // namespace CUDAMath

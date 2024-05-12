@@ -41,6 +41,8 @@ struct Intersection
     };
 };
 
+
+
 struct SpherePrimitive
 {
 
