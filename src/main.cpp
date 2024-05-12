@@ -16,7 +16,15 @@
 #include "Settings.h"
 
 #include <memory>
+#include <random>
 
+float prng(float min, float max) {
+    std::random_device rd;  // Obtain a random number from hardware
+    std::mt19937 eng(rd()); // Seed the generator
+    std::uniform_real_distribution<float> distr(min, max); // Define the range
+
+    return distr(eng); // Generate and return a random float
+}
 // settings and controls
 static constexpr sf::Keyboard::Key FORWARD{sf::Keyboard::Key::W};
 static constexpr sf::Keyboard::Key BACKWARD{sf::Keyboard::Key::S};
@@ -179,7 +187,6 @@ int main() {
     if (true) {
 #if CUDA
         using Geometry = CUDAStruct::Geometry;
-        using Plane = CUDAStruct::PlanePrimitive;
         using Sphere = CUDAStruct::SpherePrimitive;
 
         Geometry object;
@@ -188,7 +195,9 @@ int main() {
         mirror.position = {-2, 0, 0};
 
         Sphere tomato;
-        tomato.position = {0, 0, 0};
+        tomato.position = {0, -5, 0};
+
+        tomato.radius = 3;
 
         Sphere watermelon;
         watermelon.position = {2, 0, 0};
@@ -216,20 +225,29 @@ int main() {
         watermelon2.mat_emissionColor = {1, 1, 1};
         watermelon2.mat_emissionStrength = 0.5;
 
-        //DOESN"T WORK"
-        // Plane floor;
-        // floor.mat_albedo = {0.6f, 0.6f, 1.f};
-        // floor.mat_roughness = .1;
-        // floor.position = {0, 0, 0};
-        // floor.normal = {0, 0, 0, 0};
-        // floor.size = {1, 1, 1};
-        //
-
         object.add(mirror);
         object.add(tomato);
         object.add(watermelon);
         object.add(watermelon2);
 
+        for (int i = 0; i < 5; i++) {
+            Geometry randomObject;
+            for (int j =0; j < 3; j++) {
+                
+                Sphere randomSphere;
+                randomSphere.position = {prng(-1, 1), prng(- 2, 2), prng(-1, 1)};
+                randomSphere.radius = prng(0.2, 0.5);
+                randomSphere.mat_albedo = {rand() % 100 / 100.f, rand() % 100 / 100.f, rand() % 100 / 100.f};
+                randomSphere.mat_roughness = rand() % 100 / 100.f;
+                randomSphere.mat_emissionColor = {rand() % 100 / 100.f, rand() % 100 / 100.f, rand() % 100 / 100.f};
+                randomSphere.mat_emissionStrength = rand() % 100 / 100.f;
+                randomObject.add(randomSphere);
+            }
+            randomObject.position = {rand() % 10 - 5, rand() % 10 - 5, rand() % 10 - 5};
+
+            randomObject.position= {0, 0, -1.5};
+            scene.add(randomObject);
+        }
 
         object.position = {0, 0, -1.5};
         scene.add(object);
@@ -569,6 +587,7 @@ int main() {
         /// render scene to image
 #if CUDA
         RendererCUDA::render(&scene, &camera, &image);
+        // scene.tick();
 #else
         renderer.render(scene, camera, image);
 #endif

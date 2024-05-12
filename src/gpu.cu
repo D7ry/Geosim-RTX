@@ -64,7 +64,7 @@ inline __device__ double SpherePrimitive_SDF(
 
     const float dist = CUDAMath::hyperbolicSphereSDF(
         p, // todo: is w supposed to be 0?
-        sphere->radius,
+        sphere->radius_dynamic,
         hyperbolicPosition
     );
 

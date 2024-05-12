@@ -54,6 +54,8 @@ struct SpherePrimitive
 
     glm::vec3 position{0.f}; // local space
     float radius{1.f};
+
+    float radius_dynamic{1.f};
 };
 
 struct Geometry
@@ -91,6 +93,30 @@ struct Scene
         }
         geometries[num_geometries++] = object;
     }
+
+    void tick() {
+        for (int i = 0; i < this->num_geometries; i++) {
+            CUDAStruct::Geometry* geometry = geometries + i;
+            for (int j = 0; j < geometry->num_spheres; j++) {
+                CUDAStruct::SpherePrimitive* sphere = geometry->spheres + j;
+                sphere->radius_dynamic = sphere->radius * (1 + timer);
+            }
+        }
+        if (timer_increasing) {
+            timer += 0.01;
+            if (timer >= 0.5) {
+                timer_increasing = false;
+            }
+        } else {
+            timer -= 0.01;
+            if (timer <= 0) {
+                timer_increasing = true;
+            }
+        }
+    }
+
+    float timer = 0;
+    bool timer_increasing = true;
 };
 
 } // namespace CUDAStruct
