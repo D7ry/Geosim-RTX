@@ -238,6 +238,26 @@ int main() {
                 Sphere randomSphere;
                 randomSphere.position = {prng(-2, 2), prng(- 2, 2), prng(-1, 1)};
                 randomSphere.radius = prng(0.2, 0.5);
+
+                bool inside_another_sphere = false;
+                // check if sphere is inside of other sphere
+                for (int p = 0; p < scene.num_geometries; p++) {
+                    Geometry& _object = scene.geometries[p];
+                    for (int k = 0; k < _object.num_spheres; k++) {
+                        Sphere otherSphere = _object.spheres[k];
+                        float distance = glm::distance(randomSphere.position, otherSphere.position);
+                        if (distance < randomSphere.radius + otherSphere.radius + 1) {
+                            inside_another_sphere = true;
+                            break;
+                        }
+                    }
+                }
+                if (inside_another_sphere) {
+                    j -= 1; // try again
+                    continue;
+                }
+
+
                 randomSphere.mat_albedo = {rand() % 70 / 100.f, rand() % 70 / 100.f, rand() % 70 / 100.f};
                 randomSphere.mat_roughness = rand() % 100 / 100.f;
                 randomSphere.mat_emissionColor = {rand() % 100 / 100.f, rand() % 100 / 100.f, rand() % 100 / 100.f};
