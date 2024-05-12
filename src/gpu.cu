@@ -177,16 +177,13 @@ __device__ glm::vec3 environmentalLight(
     };
     
     const glm::vec3 noonColor{0.3f};
-    const glm::vec3 sunsetColor{0.3f};
+    const glm::vec3 sunsetColor{0.3f, 0.1f, 0.1f};
 
-    // Calculate interpolation based on altitude
-    float interpolation = (altitude - 0.5f * PI) / (0.5f * PI); // Normalize to [-1, 1]
+    float lerp = sinf(scene->dayTime * PI);
 
-    // Clamp interpolation factor between 0 and 1
-    interpolation = glm::clamp(interpolation, 0.0f, 1.0f);
 
     // Interpolate between sunset and noon colors
-    glm::vec3 lightColor = CUDAMath::lerp(interpolation, sunsetColor, noonColor);
+    glm::vec3 lightColor = CUDAMath::lerp(lerp, sunsetColor, noonColor);
 
     // Calculate light intensity
     float light_intensity = glm::dot(-lightDir, dir); // Negative lightDir as we want direction towards the sun
