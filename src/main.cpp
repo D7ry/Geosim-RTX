@@ -49,6 +49,7 @@ static constexpr float CAM_FAST_SPD{1.00f};
 
 static constexpr float MOUSE_SENSITIVITY{1.5f};
 
+#define CUDA_ONCE 1
 #define CUDA 1
 
 #if CUDA
@@ -774,6 +775,9 @@ int main() {
 
             return 0;
         }
+#if CUDA_ONCE
+        return 0;
+#endif
     }
 
     return 0;

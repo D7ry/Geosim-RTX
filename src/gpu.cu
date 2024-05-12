@@ -181,6 +181,7 @@ __device__ void getClosestPrimitive(
             if (d < minDistance) {
                 minDistance = glm::min(minDistance, d);
                 closestPrimitive = sphere;
+                // printf("Closest primitive found at %f, %f, %f\n", p.x, p.y, p.z);
             }
         }
     }
@@ -225,7 +226,6 @@ __device__ bool get_closest_intersection(
     //
     glm::vec4 marchPos{hyperbolicPos};
     glm::vec4 marchDir{hyperbolicDir};
-    return false;
     //   //
     for (int i = 0; i < MAX_NUM_STEPS; ++i) {
         if (!CUDAMath::isH3Point(marchPos)
@@ -246,6 +246,7 @@ __device__ bool get_closest_intersection(
             //     = primitive.material.get()
             //           ->albedo; // for rough quick rendering/debugging
 
+            // printf("Hit something at %f, %f, %f\n", marchPos.x, marchPos.y, marchPos.z);
             glm::vec3 normal{0}; // TODO: implemenet normal computation
             
 
@@ -260,6 +261,8 @@ __device__ bool get_closest_intersection(
             intersection->mat_emissionColor = closestPrimitive->mat_emissionColor;
             intersection->mat_emissionStrength = closestPrimitive->mat_emissionStrength;
             intersection->mat_roughness = closestPrimitive->mat_roughness;
+
+            return true;
 
 
         } else if (!CUDAMath::isH3Point(marchPos) 
@@ -285,6 +288,8 @@ __device__ bool get_closest_intersection(
             }
         }
     }
+
+    return false;
     //
     //   if (closestHit)
     //       return true;
@@ -327,7 +332,6 @@ __device__ glm::vec3 trace_ray(
         if (!hit) {
             break;
         }
-        printf("Hit something\n");
 
         // update ray origin and direction
         origin
@@ -512,7 +516,7 @@ __host__ void render(
     cudaFree(scene_Device);
     cudaFree(camera_Device);
 
-    print_cuda_error();
+    // print_cuda_error();
     // printf("Finished rendering with CUDA\n");
 }
 
