@@ -17,6 +17,8 @@
 
 #include "render_settings.h"
 
+#include <curand_kernel.h>
+
 __host__ void print_cuda_error() {
     auto err = cudaGetLastError();
     if (err) {
@@ -112,14 +114,15 @@ inline __device__ double SpherePrimitive_SDF(
 }
 
 __device__ glm::vec3 intersection_evaluate_outgoing(
-    const CUDAStruct::Intersection* intersection
+    const CUDAStruct::Intersection* intersection,
+    curandState* rngState
 ) {
     glm::vec3 outgoing{0.f};
 
     // if (reflected)
     {
         const glm::vec3 lambert{
-            CUDAMath::randomHemisphereDir(0, intersection->normal)
+            CUDAMath::randomHemisphereDir(rngState, intersection->normal)
         };
         const glm::vec3 mirror{
             glm::reflect(intersection->incidentDir, intersection->normal)
@@ -389,7 +392,8 @@ __device__ bool get_closest_intersection(
     float hypCamPosX,
     float hypCamPosY,
     float hypCamPosZ,
-    float hypCamPosW
+    float hypCamPosW,
+    curandState* rngState
 ) {
     //
     //
@@ -456,7 +460,7 @@ __device__ bool get_closest_intersection(
             intersection->normal = normal;
             intersection->incidentDir = ray_dir;
             intersection->outgoingDir
-                = CUDAStruct::intersection_evaluate_outgoing(intersection);
+                = CUDAStruct::intersection_evaluate_outgoing(intersection, rngState);
 
             intersection->mat_albedo = closestPrimitive->mat_albedo;
             intersection->mat_emissionColor
@@ -511,7 +515,8 @@ __device__ glm::vec3 trace_ray(
     float hypCamPosX,
     float hypCamPosY,
     float hypCamPosZ,
-    float hypCamPosW
+    float hypCamPosW,
+    curandState* rngState
 ) {
 
     int num_hits = 0;
@@ -528,8 +533,8 @@ __device__ glm::vec3 trace_ray(
             hypCamPosX,
             hypCamPosY,
             hypCamPosZ,
-            hypCamPosW
-
+            hypCamPosW,
+            rngState
         );
 
         if (!hit) {
@@ -562,6 +567,7 @@ __global__ void render_pixel(
     int bounces_per_ray,
     glm::vec3* frameBuffer_device,
     CUDAStruct::Intersection* hitsBuffer_device,
+    curandState* rngStates_device,
     float hypCamPosX,
     float hypCamPosY,
     float hypCamPosZ,
@@ -577,6 +583,7 @@ __global__ void render_pixel(
 
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int frameBufferIndex = x + (y * width);
 
     // check if out of bounds
     if (x >= width || y >= height) {
@@ -595,19 +602,20 @@ __global__ void render_pixel(
 
     glm::uvec2 pixelCoord{ndc.x * width, ndc.y * height};
 
+    curandState rngState = rngStates_device[frameBufferIndex];
+
     for (int i = 0; i < rays_per_pixel; i++) {
-        float2 rayOffset = CUDAMath::randomVec2(
-            i + (x * width) + y
-        ); // TODO: not sure if rng works
+        float rayOffsetX = curand_uniform(&rngState);
+        float rayOffsetY = curand_uniform(&rngState);
 
         const glm::vec2 ndcAliased{
-            (x + rayOffset.x) / width, (y + rayOffset.y) / height
+            (x + rayOffsetX) / width, (y + rayOffsetY) / height
         };
 
         // screen space
         glm::vec2 coord = glm::vec2{
-            ((2.f * ndc.x) - 1.f) * fovComponent * aspectRatio,
-            1.f - (2.f * ndc.y) * fovComponent // flip vertically so +y is up
+            ((2.f * ndcAliased.x) - 1.f) * fovComponent * aspectRatio,
+            1.f - (2.f * ndcAliased.y) * fovComponent // flip vertically so +y is up
         };
 
         // ray coords in world space
@@ -630,18 +638,18 @@ __global__ void render_pixel(
             hypCamPosX,
             hypCamPosY,
             hypCamPosZ,
-            hypCamPosW
+            hypCamPosW,
+            &rngState
         );
 
         final_color += color;
     }
 
+    rngStates_device[frameBufferIndex] = rngState; // write back state
+
     final_color /= RAYS_PER_PIXEL;
 
-    { // writeback to framebuffer
-        int frameBufferIndex = x + (y * width);
-        frameBuffer_device[frameBufferIndex] = final_color;
-    }
+    frameBuffer_device[frameBufferIndex] = final_color;
 }
 
 __host__ void render(
@@ -659,11 +667,17 @@ __host__ void render(
     int width = image->width;
     int height = image->height;
 
+    int num_threads_total = width * height;
+
     dim3 blockDims = dim3(16, 16); // 256 threads per block
     dim3 gridDims = dim3(
         (width + blockDims.x - 1) / blockDims.x,
         (height + blockDims.y - 1) / blockDims.y
     );
+    // Allocate rng states
+
+    curandState *rngStates_Device;
+    cudaMalloc(&rngStates_Device, sizeof(curandState) * num_threads_total);
 
     // allocate FB
     glm::vec3* frameBuffer = image->pixels.data();
@@ -700,6 +714,7 @@ __host__ void render(
         MAX_NUM_BOUNCES,
         frameBuffer_Device,
         hitsBuffer_Device,
+        rngStates_Device,
         // FIXME: these values shouldn't be passed as params, instead store them
         // in camera
         hypCamPosX,
@@ -716,10 +731,13 @@ __host__ void render(
         width * height * sizeof(glm::vec3),
         cudaMemcpyDeviceToHost
     );
+    //TODO: no need to free every iteration, free when cleaning up
     cudaFree(frameBuffer_Device);
     cudaFree(hitsBuffer_Device);
     cudaFree(scene_Device);
     cudaFree(camera_Device);
+    cudaFree(rngStates_Device);
+
 
     // print_cuda_error();
     // printf("Finished rendering with CUDA\n");
