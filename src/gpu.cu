@@ -537,7 +537,7 @@ __global__ void render_pixel(
 ) {
 
     // TODO: these should be passed in as parameters
-    float aspectRatio = width / height; // w : h
+    float aspectRatio = (float)width / (float)height; // w : h
     // todo figure out why FOV seems "off"
     float fovComponent{tanf(camera->FOV / 2.f)};
 
