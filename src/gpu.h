@@ -1,5 +1,4 @@
 #pragma once
-#include "util/CUDAMath.h"
 #include <iostream>
 
 #include <glm/glm.hpp>
@@ -13,19 +12,44 @@ class Scene;
 class Camera;
 class Image;
 
-namespace RendererCUDA
-{
-void check_device();
-void render(const Scene* scene, const Camera* camera, Image* image);
-} // namespace RendererCUDA
-  //
+//
 
 #define MAX_PRIMITIVES 10
 
 namespace CUDAStruct
 {
+
+struct Intersection
+{
+    glm::vec3 mat_albedo{1.f};
+    float mat_roughness{1.f};
+
+    glm::vec3 mat_emissionColor{1.f};
+    float mat_emissionStrength{0.f};
+    // const RayIntersection math;
+
+    glm::vec3 incidentDir; // angle at which ray hit surface
+    glm::vec3 outgoingDir; // angle at which ray left surface
+    glm::vec3 position;
+    glm::vec3 normal;
+
+    enum class ReflectionType
+    {
+        Specular,
+        Diffuse,
+        Refract
+    };
+};
+
 struct SpherePrimitive
 {
+
+    glm::vec3 mat_albedo{1.f};
+    float mat_roughness{1.f};
+
+    glm::vec3 mat_emissionColor{1.f};
+    float mat_emissionStrength{0.f};
+
     glm::vec3 position{0.f}; // local space
     float radius{1.f};
 };
@@ -65,25 +89,11 @@ struct Scene
     }
 };
 
-inline __device__ double SpherePrimitive_SDF(
-    const SpherePrimitive* sphere,
-    const glm::vec4& p,
-    const glm::vec4& positionWorldSpace
-) {
-    const glm::vec3 euclideanPosition{
-        glm::vec3(positionWorldSpace) + sphere->position
-    };
-
-    const glm::vec4 hyperbolicPosition{CUDAMath::constructHyperboloidPoint(
-        euclideanPosition, glm::length(euclideanPosition)
-    )};
-
-    const float dist = CUDAMath::hyperbolicSphereSDF(
-        p, // todo: is w supposed to be 0?
-        sphere->radius,
-        hyperbolicPosition
-    );
-
-    return dist;
-}
 } // namespace CUDAStruct
+  //
+
+namespace RendererCUDA
+{
+    void check_device();
+    void render(const CUDAStruct::Scene* scene, const Camera* camera, Image* image);
+} // namespace RendererCUDA

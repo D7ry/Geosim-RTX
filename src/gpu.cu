@@ -10,8 +10,10 @@
 #include "Settings.h"
 #include "util/CUDAMath.h"
 
-#include "gpu_sdf.h"
+// #include "gpu_sdf.h"
 #include "util/Math.h"
+
+#include "util/Ray.h"
 
 namespace CudaPlayground
 {
@@ -33,6 +35,31 @@ void play() {
     std::cout << "CUDA Playground finished" << std::endl;
 }
 } // namespace CudaPlayground
+
+namespace CUDAStruct {
+
+inline __device__ double SpherePrimitive_SDF(
+    const SpherePrimitive* sphere,
+    const glm::vec4& p,
+    const glm::vec4& positionWorldSpace
+) {
+    const glm::vec3 euclideanPosition{
+        glm::vec3(positionWorldSpace) + sphere->position
+    };
+
+    const glm::vec4 hyperbolicPosition{CUDAMath::constructHyperboloidPoint(
+        euclideanPosition, glm::length(euclideanPosition)
+    )};
+
+    const float dist = CUDAMath::hyperbolicSphereSDF(
+        p, // todo: is w supposed to be 0?
+        sphere->radius,
+        hyperbolicPosition
+    );
+
+    return dist;
+}
+}
 
 namespace RendererCUDA
 {
@@ -83,7 +110,7 @@ __device__ glm::vec3 environmentalLight(const glm::vec3& dir) {
 
 __device__ glm::vec3 evaluate_light_path(
     glm::vec3 origin,
-    Intersection* hits,
+    CUDAStruct::Intersection* hits,
     int num_hits
 ) {
 
@@ -103,12 +130,11 @@ __device__ glm::vec3 evaluate_light_path(
 
     // reverse iterate from the start of a path of light
     for (int i = num_hits - 1; i >= 0; i--) {
-        const Intersection& hit{hits[i]};
+        const CUDAStruct::Intersection* hit = hits + i;
 
         // light emitted from hit surface
-        const glm::vec3 emittedLight{
-            hit.material.emissionColor * hit.material.emissionStrength
-        };
+        const glm::vec3 emittedLight = hit->mat_emissionStrength
+                                       * hit->mat_emissionColor;
 
         // cos(theta) term
         const float lightStrength{
@@ -119,7 +145,7 @@ __device__ glm::vec3 evaluate_light_path(
         // incomingLight = emittedLight + (2.f * Math::BRDF(hit) * incomingLight
         // * lightStrength);
         incomingLight = emittedLight
-                        + (hit.material.albedo * incomingLight * lightStrength);
+                        + (hit->mat_albedo * incomingLight * lightStrength);
     }
 
     return incomingLight;
@@ -137,7 +163,7 @@ __device__ void getClosestPrimitive(
 
     for (int i = 0; i < scene->num_geometries; i++) {
         const CUDAStruct::Geometry* object = scene->geometries + i;
-        const glm::vec4 objHypPos{Math::constructHyperboloidPoint(
+        const glm::vec4 objHypPos{CUDAMath::constructHyperboloidPoint(
             object->position, glm::length(object->position)
         )};
         for (int j = 0; j < object->num_spheres; j++) {
@@ -157,7 +183,7 @@ __device__ void getClosestPrimitive(
 __device__ bool get_closest_intersection(
     glm::vec3 ray_origin,
     glm::vec3 ray_dir,
-    Intersection*
+    CUDAStruct::Intersection*
         intersection_buffer, // can directly store the intersection into
     const CUDAStruct::Scene* scene,
     float hypCamPosX,
@@ -196,7 +222,7 @@ __device__ bool get_closest_intersection(
     for (int i = 0; i < MAX_NUM_STEPS; ++i) {
         if (!CUDAMath::isH3Point(marchPos)
             || !CUDAMath::isH3Dir(marchPos, marchDir)) {
-            hyperbolicErrorAcc++;
+            // hyperbolicErrorAcc++; TODO: implement error handling
         }
         //       //
         //       //
@@ -218,11 +244,15 @@ __device__ bool get_closest_intersection(
             // if (!RENDER_WITH_POTATO_SETTINGS)
                 // normal = computeNormal(marchPos, scene);
 
-            RayIntersection rayIntersection{ray, -1, marchPos, normal};
-            Intersection i = Intersection()
-            {*primitive.material.get(), rayIntersection};
+            // populate intersection buffer
+            CUDAStruct::Intersection* intersection = intersection_buffer;
+            intersection->position = marchPos;
+            intersection->normal = normal;
+            intersection->mat_albedo = closestPrimitive->mat_albedo;
+            intersection->mat_emissionColor = closestPrimitive->mat_emissionColor;
+            intersection->mat_emissionStrength = closestPrimitive->mat_emissionStrength;
+            intersection->mat_roughness = closestPrimitive->mat_roughness;
 
-            *intersection_buffer = i;
 
         } else if (!CUDAMath::isH3Point(marchPos) 
                 || !CUDAMath::isH3Dir(marchPos, marchDir) 
@@ -237,10 +267,11 @@ __device__ bool get_closest_intersection(
                 glm::vec4 new_pos;
                 glm::vec4 new_dir;
 
+                // march the ray forward
                 CUDAMath::geodesicFlowHyperbolic(marchPos, marchDir, ss, &new_pos, &new_dir);
 
-                marchPos = Math::correctH3Point(new_pos);
-                marchDir = Math::correctDirection(marchPos, new_dir);
+                marchPos = CUDAMath::correctH3Point(new_pos);
+                marchDir = CUDAMath::correctDirection(marchPos, new_dir);
                 totalDistanceTraveled += ss;
                 dist -= ss;
             }
@@ -257,7 +288,7 @@ __device__ bool get_closest_intersection(
 __device__ glm::vec3 trace_ray(
     glm::vec3 origin,
     glm::vec3 direction,
-    Intersection* hitsBuffer_ray, // guaranteed to allow for storing num_bounces
+    CUDAStruct::Intersection* hitsBuffer_ray, // guaranteed to allow for storing num_bounces
                                   // intersection
     int num_bounces,
     const CUDAStruct::Scene* scene,
@@ -268,7 +299,7 @@ __device__ glm::vec3 trace_ray(
 ) {
     int num_hits = 0;
     for (int i = 0; i < num_bounces; i++) {
-        Intersection* hitsBuffer_bounce
+        CUDAStruct::Intersection* hitsBuffer_bounce
             = hitsBuffer_ray
               + i; // if intersection happens, store it into this buffer
 
@@ -300,7 +331,6 @@ __device__ glm::vec3 trace_ray(
         evaluate_light_path(origin, hitsBuffer_ray, num_hits)
     };
 
-    return glm::vec3{1, 0, 0}; // finalColor; FIXME: return actual color.
     return finalColor;
 }
 
@@ -313,7 +343,7 @@ __global__ void render_pixel(
     int rays_per_pixel,
     int bounces_per_ray,
     glm::vec3* frameBuffer_device,
-    Intersection* hitsBuffer_device,
+    CUDAStruct::Intersection* hitsBuffer_device,
     float hypCamPosX,
     float hypCamPosY,
     float hypCamPosZ,
@@ -328,7 +358,7 @@ __global__ void render_pixel(
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
 
-    Intersection* hitsBuffer_pixel
+    CUDAStruct::Intersection* hitsBuffer_pixel
         = hitsBuffer_device
           + (x + (y * width) * rays_per_pixel * bounces_per_ray);
 
@@ -361,7 +391,7 @@ __global__ void render_pixel(
         dir = glm::normalize(dir);
         dir = dir * camera->viewMat;
 
-        Intersection* hitsBuffer_ray = hitsBuffer_pixel + (i * bounces_per_ray);
+        CUDAStruct::Intersection* hitsBuffer_ray = hitsBuffer_pixel + (i * bounces_per_ray);
 
         glm::vec3 color = trace_ray(
             start,
@@ -411,10 +441,10 @@ __host__ void render(
     cudaMalloc(&frameBuffer_Device, width * height * sizeof(glm::vec3));
 
     // allocate buffer to store intersections data
-    Intersection* hitsBuffer_Device;
+    CUDAStruct::Intersection* hitsBuffer_Device;
     cudaMalloc(
         &hitsBuffer_Device,
-        width * height * RAYS_PER_PIXEL * MAX_NUM_BOUNCES * sizeof(Intersection)
+        width * height * RAYS_PER_PIXEL * MAX_NUM_BOUNCES * sizeof(CUDAStruct::Intersection)
     ); // each ray (bounce) needs to store its hit
 
     // allocate mem for cudascene

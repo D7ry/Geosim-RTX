@@ -55,14 +55,14 @@ static constexpr float MOUSE_SENSITIVITY{ 1.5f };
 void testCuda() {
     // CudaPlayground::play();
     Camera cam_;
-    Scene scene_;
     Image img_{ 800, 600};
+    CUDAStruct::Scene scene;
     
     // reset all pixels
     for (auto& p : img_.pixels)
         p = { 0,0,0 };
 
-    RendererCUDA::render(&scene_, &cam_, &img_);
+    RendererCUDA::render(&scene, &cam_, &img_);
     // check pixel color
     for (auto& p : img_.pixels)
     {

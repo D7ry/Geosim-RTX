@@ -101,7 +101,7 @@ __device__ double hyperbolicSphereSDF(
     return hypDistance(p, center) - r;
 }
 
-inline __device__ glm::vec4 hypGeoFlowPos(
+__device__ glm::vec4 hypGeoFlowPos(
     const glm::vec4& pos,
     const glm::vec4& dir,
     float t
@@ -109,7 +109,7 @@ inline __device__ glm::vec4 hypGeoFlowPos(
     return {cosh(t) * pos + sinh(t) * dir};
 }
 
-inline __device__ glm::vec4 hypGeoFlowDir(
+__device__ glm::vec4 hypGeoFlowDir(
     const glm::vec4& pos,
     const glm::vec4& dir,
     float t
@@ -117,7 +117,7 @@ inline __device__ glm::vec4 hypGeoFlowDir(
     return {sinh(t) * pos + cosh(t) * dir};
 }
 
-inline __device__ void geodesicFlowHyperbolic(
+__device__ void geodesicFlowHyperbolic(
     const glm::vec4& pos,
     const glm::vec4& dir,
     float t,
@@ -126,6 +126,18 @@ inline __device__ void geodesicFlowHyperbolic(
 ) {
     *new_pos = hypGeoFlowPos(pos, dir, t);
     *new_dir = hypGeoFlowDir(pos, dir, t);
+}
+
+__device__ glm::vec4 correctH3Point(const glm::vec4 p) {
+    const float minkowskiNorm = hypDot(p, p);
+
+    if (std::abs(minkowskiNorm + 1) > 1e-6) {
+        // Position is not in H^3, project it back onto the hyperboloid
+        const float scaleFactor = std::sqrt(-1 / minkowskiNorm);
+        const glm::vec4 correctedPosition = p * scaleFactor;
+        return correctedPosition;
+    } else
+        return p;
 }
 
 } // namespace CUDAMath
