@@ -236,12 +236,12 @@ int main() {
             for (int j =0; j < 3; j++) {
                 
                 Sphere randomSphere;
-                randomSphere.position = {prng(-1, 1), prng(- 2, 2), prng(-1, 1)};
+                randomSphere.position = {prng(-2, 2), prng(- 2, 2), prng(-1, 1)};
                 randomSphere.radius = prng(0.2, 0.5);
-                randomSphere.mat_albedo = {rand() % 100 / 100.f, rand() % 100 / 100.f, rand() % 100 / 100.f};
+                randomSphere.mat_albedo = {rand() % 70 / 100.f, rand() % 70 / 100.f, rand() % 70 / 100.f};
                 randomSphere.mat_roughness = rand() % 100 / 100.f;
                 randomSphere.mat_emissionColor = {rand() % 100 / 100.f, rand() % 100 / 100.f, rand() % 100 / 100.f};
-                randomSphere.mat_emissionStrength = rand() % 100 / 100.f;
+                randomSphere.mat_emissionStrength = rand() % 50 / 100.f;
                 randomObject.add(randomSphere);
             }
             randomObject.position = {rand() % 10 - 5, rand() % 10 - 5, rand() % 10 - 5};

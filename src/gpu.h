@@ -106,7 +106,7 @@ struct Scene
     }
 
     void tick(float delta_time) {
-#define DAY_LENGTH_SECONDS 5.f
+#define DAY_LENGTH_SECONDS 20.f
         dayTime += delta_time / DAY_LENGTH_SECONDS;
         dayTime = fmod(dayTime, 1.f);
 

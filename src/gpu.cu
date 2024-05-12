@@ -160,28 +160,42 @@ void check_device() {
     }
 }
 
+#define PI 3.14159265359f
 __device__ glm::vec3 environmentalLight(
     const glm::vec3& dir,
     const CUDAStruct::Scene* scene
 ) {
+    // Convert dayTime to azimuth and altitude
+    float azimuth = scene->dayTime * 2 * PI; // Assuming dayTime is in range [0, 1]
+    float altitude = 0.5f * PI; // Assuming sun always stays at zenith
 
-    glm::vec3 lightDir
-        = glm::vec3(sinf(scene->dayTime), cosf(scene->dayTime), 0);
-    lightDir = glm::normalize(lightDir);
+    // Calculate light direction in spherical coordinates
+    glm::vec3 lightDir{
+        sinf(altitude) * cosf(azimuth),
+        cosf(altitude),
+        sinf(altitude) * sinf(azimuth)
+    };
+    
+    const glm::vec3 noonColor{0.3f};
+    const glm::vec3 sunsetColor{0.3f};
 
-    const glm::vec3 noonColor{0.5};
+    // Calculate interpolation based on altitude
+    float interpolation = (altitude - 0.5f * PI) / (0.5f * PI); // Normalize to [-1, 1]
 
-    const glm::vec3 sunsetColor{0.5, .3, .15};
+    // Clamp interpolation factor between 0 and 1
+    interpolation = glm::clamp(interpolation, 0.0f, 1.0f);
 
-    const float interpolation
-        = glm::max(0.f, glm::dot(lightDir, glm::vec3{0, 1, 0}));
+    // Interpolate between sunset and noon colors
+    glm::vec3 lightColor = CUDAMath::lerp(interpolation, sunsetColor, noonColor);
 
-    const glm::vec3 lightColor
-        = CUDAMath::lerp(interpolation, sunsetColor, noonColor);
+    // Calculate light intensity
+    float light_intensity = glm::dot(-lightDir, dir); // Negative lightDir as we want direction towards the sun
 
-    auto light_intensity = glm::dot(lightDir, dir);
+    // Ensure light intensity is non-negative
+    light_intensity = glm::max(0.f, light_intensity);
 
-    glm::vec3 light{glm::max(0.f, glm::dot(lightDir, dir)) * lightColor};
+    // Compute final light contribution
+    glm::vec3 light = light_intensity * lightColor;
 
     return light;
 }
