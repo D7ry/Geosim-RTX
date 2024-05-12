@@ -49,6 +49,46 @@ void play() {
 namespace CUDAStruct
 {
 
+__host__ CubeMap* loadCubeMap(const char* filename) {
+    int channels;
+    int width, height;
+    unsigned char* img
+        = stbi_load(filename, &width, &height, &channels, 3); // Load as RGB
+    glm::vec3* colors = new glm::vec3[width * height];
+    for (int i = 0; i < width * height; ++i) {
+        colors[i] = glm::vec3(
+            img[i * 3] / 255.0f,
+            img[i * 3 + 1] / 255.0f,
+            img[i * 3 + 2] / 255.0f
+        );
+    }
+    CubeMap* cubeMap = new CubeMap();
+    cubeMap->width = width;
+    cubeMap->height = height;
+    glm::vec3* data;
+    cudaMalloc(&data, sizeof(glm::vec3) * width * height);
+    cubeMap->data = data;
+    cubeMap->width = width;
+    cubeMap->height = height;
+    cudaMemcpy(
+        cubeMap->data,
+        colors,
+        sizeof(glm::vec3) * width * height,
+        cudaMemcpyHostToDevice
+    );
+
+    CubeMap* cubeMapDevice;
+    cudaMalloc(&cubeMapDevice, sizeof(CubeMap));
+    cudaMemcpy(cubeMapDevice, cubeMap, sizeof(CubeMap), cudaMemcpyHostToDevice);
+
+    free(colors);
+    free(img);
+    free(cubeMap);
+
+    return cubeMapDevice;
+    stbi_image_free(img);
+}
+
 inline __device__ double SpherePrimitive_SDF(
     const SpherePrimitive* sphere,
     const glm::vec4& p,
@@ -71,20 +111,24 @@ inline __device__ double SpherePrimitive_SDF(
     return dist;
 }
 
-__device__ glm::vec3 intersection_evaluate_outgoing(const CUDAStruct::Intersection* intersection)
-{
-    glm::vec3 outgoing{ 0.f };
+__device__ glm::vec3 intersection_evaluate_outgoing(
+    const CUDAStruct::Intersection* intersection
+) {
+    glm::vec3 outgoing{0.f};
 
-    //if (reflected)
+    // if (reflected)
     {
-        const glm::vec3 lambert{ CUDAMath::randomHemisphereDir(0, intersection->normal) };
-        const glm::vec3 mirror{ glm::reflect(intersection->incidentDir, intersection->normal) };
+        const glm::vec3 lambert{
+            CUDAMath::randomHemisphereDir(0, intersection->normal)
+        };
+        const glm::vec3 mirror{
+            glm::reflect(intersection->incidentDir, intersection->normal)
+        };
 
         outgoing = CUDAMath::lerp(intersection->mat_roughness, mirror, lambert);
     }
-    //else // light diffused or refracted
-    {
-    }
+    // else // light diffused or refracted
+    {}
 
     return outgoing;
 }
@@ -116,15 +160,18 @@ void check_device() {
     }
 }
 
-__device__ glm::vec3 environmentalLight(const glm::vec3& dir) {
-    const float dayTime{64 / 128.f}; // TODO: actually use global tick
+__device__ glm::vec3 environmentalLight(
+    const glm::vec3& dir,
+    const CUDAStruct::Scene* scene
+) {
 
-    // glm::vec3 lightDir{ sinf(dayTime), cosf(dayTime), 0 };
-    glm::vec3 lightDir{0, 1, 0};
+    glm::vec3 lightDir
+        = glm::vec3(sinf(scene->dayTime), cosf(scene->dayTime), 0);
     lightDir = glm::normalize(lightDir);
 
-    const glm::vec3 noonColor{1};
-    const glm::vec3 sunsetColor{1, .6, .3};
+    const glm::vec3 noonColor{0.5};
+
+    const glm::vec3 sunsetColor{0.5, .3, .15};
 
     const float interpolation
         = glm::max(0.f, glm::dot(lightDir, glm::vec3{0, 1, 0}));
@@ -139,10 +186,49 @@ __device__ glm::vec3 environmentalLight(const glm::vec3& dir) {
     return light;
 }
 
+// entirely written by chatgipidy
+__device__ glm::vec2 DirectionToEnvMapCoords(const glm::vec3& direction) {
+    // Convert direction to spherical coordinates
+    float longitude = atan2(
+        direction.z, direction.x
+    ); // Angle in XY plane from positive X axis
+    float latitude = acos(direction.y); // Angle from positive Y axis
+
+    // Normalize longitude to range [0, 2*pi)
+    if (longitude < 0.0f)
+        longitude += glm::two_pi<float>();
+
+    // Map spherical coordinates to uv coordinates [0, 1]
+    float u = longitude / glm::two_pi<float>();
+    float v = 1.0f - latitude / glm::pi<float>();
+
+    u = glm::clamp(u, 0.0f, 1.0f);
+    v = glm::clamp(v, 0.0f, 1.0f);
+
+    return glm::vec2(u, v);
+}
+
+__device__ glm::vec3 sample_environment_map(
+    const glm::vec3& dir,
+    const CUDAStruct::Scene* scene
+) {
+    glm::vec2 directionUV = DirectionToEnvMapCoords(dir);
+
+    int index
+        = (int)(directionUV.y * scene->cubemap->height) * scene->cubemap->width
+          + (int)(directionUV.x * scene->cubemap->width);
+
+    if (index >= scene->cubemap->width * scene->cubemap->height)
+        return glm::vec3(0.0f, 0.0f, 0.0f);
+
+    return scene->cubemap->data[index];
+}
+
 __device__ glm::vec3 evaluate_light_path(
     glm::vec3 origin,
     CUDAStruct::Intersection* hits,
-    int num_hits
+    int num_hits,
+    const CUDAStruct::Scene* scene
 ) {
 
     if (num_hits != 0) {
@@ -160,17 +246,15 @@ __device__ glm::vec3 evaluate_light_path(
 
     if (reachedEnvironment) {
         // if (environmentDir != glm::vec3{0}) {
-            // printf("Environment dir: %f, %f, %f\n", environmentDir.x,
-                   // environmentDir.y, environmentDir.z);
+        // printf("Environment dir: %f, %f, %f\n", environmentDir.x,
+        // environmentDir.y, environmentDir.z);
         // }
-        incomingLight += environmentalLight(environmentDir);
+        incomingLight += environmentalLight(environmentDir, scene);
+        incomingLight += sample_environment_map(environmentDir, scene);
         // if (incomingLight != glm::vec3{0}) {
-            // printf("Environment light: %f, %f, %f\n", incomingLight.x,
-            //        incomingLight.y, incomingLight.z);
+        // printf("Environment light: %f, %f, %f\n", incomingLight.x,
+        //        incomingLight.y, incomingLight.z);
         // }
-    }
-    if (num_hits == 0) {
-        incomingLight += BACKGROUND_COLOR;
     }
 
     // reverse iterate from the start of a path of light
@@ -360,7 +444,8 @@ __device__ bool get_closest_intersection(
             intersection->position = marchPos;
             intersection->normal = normal;
             intersection->incidentDir = ray_dir;
-            intersection->outgoingDir = CUDAStruct::intersection_evaluate_outgoing(intersection);
+            intersection->outgoingDir
+                = CUDAStruct::intersection_evaluate_outgoing(intersection);
 
             intersection->mat_albedo = closestPrimitive->mat_albedo;
             intersection->mat_emissionColor
@@ -441,8 +526,8 @@ __device__ glm::vec3 trace_ray(
         }
 
         // update ray origin and direction
-        origin
-            = hitsBuffer_bounce->position + hitsBuffer_bounce->outgoingDir * 0.02f;
+        origin = hitsBuffer_bounce->position
+                 + hitsBuffer_bounce->outgoingDir * 0.02f;
         direction = hitsBuffer_bounce->outgoingDir;
 
         num_hits++;
@@ -450,7 +535,7 @@ __device__ glm::vec3 trace_ray(
 
     CUDAStruct::Intersection* hits = hitsBuffer_ray;
     const glm::vec3 finalColor{
-        evaluate_light_path(origin, hits, num_hits)
+        evaluate_light_path(direction, hits, num_hits, scene)
     };
 
     return finalColor;
@@ -594,7 +679,6 @@ __host__ void render(
     Camera* camera_Device;
     cudaMalloc(&camera_Device, sizeof(Camera));
     cudaMemcpy(camera_Device, camera, sizeof(Camera), cudaMemcpyHostToDevice);
-
 
     render_pixel<<<gridDims, blockDims>>>(
         scene_Device,

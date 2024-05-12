@@ -93,6 +93,7 @@ int main() {
 
 #if CUDA
     CUDAStruct::Scene scene;
+    scene.cubemap = CUDAStruct::loadCubeMap("../resource/starmap_g8k.jpg");
 #else
     Scene scene;
 #endif
@@ -230,7 +231,7 @@ int main() {
         object.add(watermelon);
         object.add(watermelon2);
 
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 3; i++) {
             Geometry randomObject;
             for (int j =0; j < 3; j++) {
                 
@@ -262,7 +263,6 @@ int main() {
 
         Sphere watermelon;
         watermelon.position = {2, 0, 0};
-
         Sphere watermelon2;
         watermelon2.position = {4, 0, 0};
 
@@ -335,6 +335,7 @@ int main() {
                   << "Close: Esc\n"
                   << "Have Fun! (Moving while accumulating is cool)\n";
 
+    // main render loop
     while (!INTERACTIVE_MODE || window->isOpen()) {
         if (window)
             window->update();
@@ -586,8 +587,9 @@ int main() {
 
         /// render scene to image
 #if CUDA
+        float deltaTime = timer.restart().asSeconds();
+        scene.tick(deltaTime);
         RendererCUDA::render(&scene, &camera, &image);
-        // scene.tick();
 #else
         renderer.render(scene, camera, image);
 #endif

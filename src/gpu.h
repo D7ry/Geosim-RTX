@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include <glm/glm.hpp>
+#include "lib/stb_image.h"
 
 namespace CudaPlayground
 {
@@ -18,6 +19,14 @@ class Image;
 
 namespace CUDAStruct
 {
+struct CubeMap {
+    int width;
+    int height;
+    glm::vec3* data;
+};
+
+// load up a cubemap into GPU memory
+CubeMap* loadCubeMap(const char* filename);
 
 struct Intersection
 {
@@ -84,6 +93,8 @@ struct Scene
 {
     CUDAStruct::Geometry geometries[MAX_GEOMETRY];
     size_t num_geometries{0};
+    CUDAStruct::CubeMap* cubemap;
+    float dayTime = 0.3f; // 0.0f - 1.0f
 
     void add(const CUDAStruct::Geometry& object) {
         if (num_geometries >= MAX_GEOMETRY) {
@@ -94,25 +105,29 @@ struct Scene
         geometries[num_geometries++] = object;
     }
 
-    void tick() {
-        for (int i = 0; i < this->num_geometries; i++) {
-            CUDAStruct::Geometry* geometry = geometries + i;
-            for (int j = 0; j < geometry->num_spheres; j++) {
-                CUDAStruct::SpherePrimitive* sphere = geometry->spheres + j;
-                sphere->radius_dynamic = sphere->radius * (1 + timer);
-            }
-        }
-        if (timer_increasing) {
-            timer += 0.01;
-            if (timer >= 0.5) {
-                timer_increasing = false;
-            }
-        } else {
-            timer -= 0.01;
-            if (timer <= 0) {
-                timer_increasing = true;
-            }
-        }
+    void tick(float delta_time) {
+#define DAY_LENGTH_SECONDS 5.f
+        dayTime += delta_time / DAY_LENGTH_SECONDS;
+        dayTime = fmod(dayTime, 1.f);
+
+        // for (int i = 0; i < this->num_geometries; i++) {
+        //     CUDAStruct::Geometry* geometry = geometries + i;
+        //     for (int j = 0; j < geometry->num_spheres; j++) {
+        //         CUDAStruct::SpherePrimitive* sphere = geometry->spheres + j;
+        //         sphere->radius_dynamic = sphere->radius * (1 + timer);
+        //     }
+        // }
+        // if (timer_increasing) {
+        //     timer += 0.01;
+        //     if (timer >= 0.5) {
+        //         timer_increasing = false;
+        //     }
+        // } else {
+        //     timer -= 0.01;
+        //     if (timer <= 0) {
+        //         timer_increasing = true;
+        //     }
+        // }
     }
 
     float timer = 0;
