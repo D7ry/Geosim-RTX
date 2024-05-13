@@ -191,8 +191,8 @@ int main() {
         using Geometry = CUDAStruct::Geometry;
         using Sphere = CUDAStruct::SpherePrimitive;
 
-        const bool solar_system = true;
-        const bool jonathan_balls = false;
+        const bool solar_system = false;
+        const bool jonathan_balls = true;
         const bool random_objects = false; // FIXME: fix it
 
         if (solar_system) { // solar system
@@ -200,50 +200,7 @@ int main() {
         }
 
         if (jonathan_balls) { // Jonathan balls
-
-            Geometry object;
-
-            Sphere mirror;
-            mirror.position = {-2, 0, 0};
-
-            Sphere tomato;
-            tomato.position = {0, -2, 0};
-
-            tomato.radius = 1;
-
-            Sphere watermelon;
-            watermelon.position = {2, 0, 0};
-
-            Sphere watermelon2;
-            watermelon2.position = {4, 0, 0};
-
-            mirror.mat_albedo = {1, 1, 1};
-            mirror.mat_roughness = 0;
-            mirror.mat_emissionColor = {0, 1, 1};
-            mirror.mat_emissionStrength = 0.5;
-
-            tomato.mat_albedo = {1, 0, 0};
-            tomato.mat_roughness = 0.5;
-            tomato.mat_emissionColor = {1, 0, 1};
-            tomato.mat_emissionStrength = 0.5;
-
-            watermelon.mat_albedo = {0, 1, 0};
-            watermelon.mat_roughness = 1;
-            watermelon.mat_emissionColor = {1, 1, 0};
-            watermelon.mat_emissionStrength = 0.5;
-
-            watermelon2.mat_albedo = {0, 1, 0};
-            watermelon2.mat_roughness = 1;
-            watermelon2.mat_emissionColor = {1, 1, 1};
-            watermelon2.mat_emissionStrength = 0.5;
-
-            object.add(mirror);
-            object.add(tomato);
-            object.add(watermelon);
-            object.add(watermelon2);
-
-            object.position = {0, 0, -1.5};
-            scene.add(object);
+            CUDAScenes::jonathan_balls(&scene);
         }
 
         if (random_objects) {
@@ -255,27 +212,6 @@ int main() {
                     randomSphere.position
                         = {prng(-2, 2), prng(-2, 2), prng(-1, 1)};
                     randomSphere.radius = prng(0.2, 0.5);
-
-                    bool inside_another_sphere = false;
-                    // check if sphere is inside of other sphere
-                    for (int p = 0; p < scene.num_geometries; p++) {
-                        Geometry& _object = scene.geometries[p];
-                        for (int k = 0; k < _object.num_spheres; k++) {
-                            Sphere otherSphere = _object.spheres[k];
-                            float distance = glm::distance(
-                                randomSphere.position, otherSphere.position
-                            );
-                            if (distance < randomSphere.radius
-                                               + otherSphere.radius + 1) {
-                                inside_another_sphere = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (inside_another_sphere) {
-                        j -= 1; // try again
-                        continue;
-                    }
 
                     randomSphere.mat_albedo
                         = {rand() % 70 / 100.f,
