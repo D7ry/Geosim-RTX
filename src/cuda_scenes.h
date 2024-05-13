@@ -4,10 +4,63 @@
 namespace CUDAScenes
 {
 
+using Geometry = CUDAStruct::Geometry;
+using Sphere = CUDAStruct::SpherePrimitive;
+
+
+inline void random_objects(CUDAStruct::Scene* scene) {}
+
+inline void jonathan_balls(CUDAStruct::Scene* scene) {
+    scene->cubemap
+        = CUDAStruct::load_texture_device("../resource/env_map.webp");
+
+    Geometry object;
+
+    Sphere mirror;
+    mirror.position = {-2, 0, 0};
+
+    Sphere tomato;
+    tomato.position = {0, -2, 0};
+
+    tomato.radius = 1;
+
+    Sphere watermelon;
+    watermelon.position = {2, 0, 0};
+
+    Sphere watermelon2;
+    watermelon2.position = {4, 0, 0};
+
+    mirror.mat_albedo = {1, 1, 1};
+    mirror.mat_roughness = 0;
+    mirror.mat_emissionColor = {0, 1, 1};
+    mirror.mat_emissionStrength = 0.5;
+
+    tomato.mat_albedo = {1, 0, 0};
+    tomato.mat_roughness = 0.5;
+    tomato.mat_emissionColor = {1, 0, 1};
+    tomato.mat_emissionStrength = 0.5;
+
+    watermelon.mat_albedo = {0, 1, 0};
+    watermelon.mat_roughness = 1;
+    watermelon.mat_emissionColor = {1, 1, 0};
+    watermelon.mat_emissionStrength = 0.5;
+
+    watermelon2.mat_albedo = {0, 1, 0};
+    watermelon2.mat_roughness = 1;
+    watermelon2.mat_emissionColor = {1, 1, 1};
+    watermelon2.mat_emissionStrength = 0.5;
+
+    object.add(mirror);
+    object.add(tomato);
+    object.add(watermelon);
+    object.add(watermelon2);
+
+    object.position = {0, 0, -1.5};
+    scene->add(object);
+}
+
 inline void solar_system(CUDAStruct::Scene* scene) {
 
-    using Geometry = CUDAStruct::Geometry;
-    using Sphere = CUDAStruct::SpherePrimitive;
     scene->cubemap
         = CUDAStruct::load_texture_device("../resource/starmap_g8k.jpg");
     Geometry solar_system;
@@ -64,7 +117,8 @@ inline void solar_system(CUDAStruct::Scene* scene) {
     earth.mat_roughness = 0.2;
     earth.mat_emissionColor = {0, 0.5, 1};
     earth.mat_emissionStrength = 0.3;
-    earth.texture_device = CUDAStruct::load_texture_device("../resource/8k_earth_daymap.jpg");
+    earth.texture_device
+        = CUDAStruct::load_texture_device("../resource/8k_earth_daymap.jpg");
 
     // Mars
     Sphere mars;
@@ -123,6 +177,15 @@ inline void solar_system(CUDAStruct::Scene* scene) {
 
     sun.texture_device
         = CUDAStruct::load_texture_device("../resource/nasa_sun.png");
+
+    mercury.mat_is_emissive = true;
+    venus.mat_is_emissive = true;
+    earth.mat_is_emissive = true;
+    mars.mat_is_emissive = true;
+    jupiter.mat_is_emissive = true;
+    saturn.mat_is_emissive = true;
+    uranus.mat_is_emissive = true;
+    neptune.mat_is_emissive = true;
 
     solar_system.add(sun);
     solar_system.add(mercury);

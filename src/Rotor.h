@@ -22,3 +22,9 @@ class Rotor {
         };
         std::vector<Rotation> _rotations;
 };
+
+class RainDrop {
+    public:
+        void add(void* sphere_primitive, float raindrop_ceiling, float raindrop_floor, glm::vec2 raindrop_range, float raindrop_period_sec);
+
+};

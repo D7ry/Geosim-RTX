@@ -198,8 +198,8 @@ __device__ glm::vec3 environment_light(
         sinf(altitude) * sinf(azimuth)
     };
 
-    const glm::vec3 noonColor{0.3f};
-    const glm::vec3 sunsetColor{0.3f, 0.1f, 0.1f};
+    const glm::vec3 noonColor{0.1f};
+    const glm::vec3 sunsetColor{0.1f, 0.03f, 0.03f};
 
     float lerp = sinf(scene->dayTime * PI);
 
