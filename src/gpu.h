@@ -4,6 +4,8 @@
 #include "lib/stb_image.h"
 #include <glm/glm.hpp>
 
+#include "Rotor.h"
+
 namespace CudaPlayground
 {
 void play();
@@ -64,7 +66,7 @@ struct SpherePrimitive
     glm::vec3 position{0.f}; // local space
     float radius{1.f};
 
-    Texture* texture_device; // ptr to texture in device memory, nullptr if no
+    Texture* texture_device = nullptr; // ptr to texture in device memory, nullptr if no
                              // texture in which case albedo is used
 };
 
@@ -97,6 +99,7 @@ struct Scene
     size_t num_geometries{0};
     CUDAStruct::Texture* cubemap;
     float dayTime = 0.3f; // 0.0f - 1.0f
+    Rotor rotor;
 
     void add(const CUDAStruct::Geometry& object) {
         if (num_geometries >= MAX_GEOMETRY) {
@@ -112,7 +115,8 @@ struct Scene
 #define DAY_LENGTH_SECONDS 20.f
         dayTime += delta_time / DAY_LENGTH_SECONDS;
         dayTime = fmod(dayTime, 1.f);
-
+        rotor.tick(delta_time);
+        // rotor.tick(delta_time);
         // for (int i = 0; i < this->num_geometries; i++) {
         //     CUDAStruct::Geometry* geometry = geometries + i;
         //     for (int j = 0; j < geometry->num_spheres; j++) {

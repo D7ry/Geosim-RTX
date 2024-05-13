@@ -265,6 +265,13 @@ __device__ glm::vec3 evaluate_light_path(
     int num_hits,
     const CUDAStruct::Scene* scene
 ) {
+    if (num_hits >= 1) {
+        return hits[0].mat_albedo;
+    }
+
+    // if (num_hits >= 1) {
+    //     return hits[0].normal;
+    // }
 
     glm::vec3 incomingLight{0};
 
@@ -355,7 +362,7 @@ __device__ glm::vec3 compute_normal(
     const CUDAStruct::Scene* scene
 ) {
 
-    static constexpr float EPSILON{0.001f};
+    static constexpr float EPSILON{0.0001f};
     // hyperbolic normalization
     // Compute basis vectors for the tangent hyperplane at p
     glm::vec4 basis_x = CUDAMath::hypNormalize(glm::vec4(p.w, 0.0f, 0.0f, p.x));
@@ -390,15 +397,14 @@ __device__ glm::vec3 compute_normal(
 inline __device__ glm::vec2 normal_to_polar_coordinates(const glm::vec3& normal
 ) {
     // Convert normal to spherical coordinates
-    float longitude
-        = atan2(normal.z, normal.x); // Angle in XY plane from positive X axis
-    float latitude = acos(normal.y); // Angle from positive Y axis
+    float azimuth = atan2(normal.y, normal.x);
+    float polar = acos(normal.z / glm::length(normal));
 
-    // Normalize longitude to range [0, 2*pi)
-    if (longitude < 0.0f)
-        longitude += glm::two_pi<float>();
-
-    return glm::vec2(longitude, latitude);
+    // Map spherical coordinates to UV space
+    float u = (azimuth + PI) / (2 * PI); // Normalize azimuth to [0,1]
+    float v = polar / PI;                // Normalize polar angle to [0,1]
+    
+    return glm::vec2(u, v);
 }
 
 inline __device__ glm::vec3 sample_texture(
@@ -480,11 +486,12 @@ __device__ bool get_closest_intersection(
                 );
 
             if (closestPrimitive->texture_device) {
-                glm::vec3 albedo = sample_sphere_texture(
+                glm::vec3 texture_sample = sample_sphere_texture(
                     closestPrimitive->texture_device, normal
                 );
-                intersection->mat_albedo = albedo;
-                intersection->mat_emissionColor = glm::vec3(0, 0, 0);
+                intersection->mat_albedo = texture_sample;
+                intersection->mat_emissionColor = texture_sample;
+                intersection->mat_emissionStrength = 0;
             } else {
                 intersection->mat_albedo = closestPrimitive->mat_albedo;
             }
@@ -728,6 +735,7 @@ __host__ void render(
     cudaFree(frameBuffer_Device);
     cudaFree(hitsBuffer_Device);
     cudaFree(rngStates_Device);
+    print_cuda_error();
 }
 
 } // namespace RendererCUDA
