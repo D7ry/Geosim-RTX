@@ -42,6 +42,9 @@ inline void solar_system(CUDAStruct::Scene* scene) {
     mercury.mat_emissionColor = {0.8, 0.8, 0.8};
     mercury.mat_emissionStrength = 0.1;
 
+    mercury.texture_device
+        = CUDAStruct::load_texture_device("../resource/8k_mercury.jpg");
+
     // Venus
     Sphere venus;
     venus.position = {0, 0, 0};
@@ -50,6 +53,9 @@ inline void solar_system(CUDAStruct::Scene* scene) {
     venus.mat_roughness = 0.4;
     venus.mat_emissionColor = {0.9, 0.7, 0.2};
     venus.mat_emissionStrength = 0.2;
+
+    venus.texture_device
+        = CUDAStruct::load_texture_device("../resource/8k_venus.jpg");
     // Earth
     Sphere earth;
     earth.position = {0, 0, 0};
@@ -58,6 +64,7 @@ inline void solar_system(CUDAStruct::Scene* scene) {
     earth.mat_roughness = 0.2;
     earth.mat_emissionColor = {0, 0.5, 1};
     earth.mat_emissionStrength = 0.3;
+    earth.texture_device = CUDAStruct::load_texture_device("../resource/8k_earth_daymap.jpg");
 
     // Mars
     Sphere mars;
@@ -67,6 +74,8 @@ inline void solar_system(CUDAStruct::Scene* scene) {
     mars.mat_roughness = 0.3;
     mars.mat_emissionColor = {1, 0, 0};
     mars.mat_emissionStrength = 0.1;
+    mars.texture_device
+        = CUDAStruct::load_texture_device("../resource/8k_mars.jpg");
 
     // Jupiter
     Sphere jupiter;
@@ -76,6 +85,8 @@ inline void solar_system(CUDAStruct::Scene* scene) {
     jupiter.mat_roughness = 0.5;
     jupiter.mat_emissionColor = {0.8, 0.6, 0.4};
     jupiter.mat_emissionStrength = 0.4;
+    jupiter.texture_device
+        = CUDAStruct::load_texture_device("../resource/8k_jupiter.jpg");
 
     // Saturn
     Sphere saturn;
@@ -85,6 +96,8 @@ inline void solar_system(CUDAStruct::Scene* scene) {
     saturn.mat_roughness = 0.6;
     saturn.mat_emissionColor = {0.9, 0.8, 0.6};
     saturn.mat_emissionStrength = 0.3;
+    saturn.texture_device
+        = CUDAStruct::load_texture_device("../resource/8k_saturn.jpg");
 
     // Uranus
     Sphere uranus;
@@ -94,6 +107,8 @@ inline void solar_system(CUDAStruct::Scene* scene) {
     uranus.mat_roughness = 0.4;
     uranus.mat_emissionColor = {0.6, 0.8, 1};
     uranus.mat_emissionStrength = 0.2;
+    uranus.texture_device
+        = CUDAStruct::load_texture_device("../resource/2k_uranus.jpg");
 
     // Neptune
     Sphere neptune;
@@ -103,6 +118,8 @@ inline void solar_system(CUDAStruct::Scene* scene) {
     neptune.mat_roughness = 0.3;
     neptune.mat_emissionColor = {0.2, 0.4, 1};
     neptune.mat_emissionStrength = 0.2;
+    neptune.texture_device
+        = CUDAStruct::load_texture_device("../resource/2k_neptune.jpg");
 
     sun.texture_device
         = CUDAStruct::load_texture_device("../resource/nasa_sun.png");
