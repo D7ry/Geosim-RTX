@@ -1,3 +1,4 @@
+#include <exception>
 #include <iostream>
 #include <stdio.h>
 
@@ -46,12 +47,16 @@ void play() {
 namespace CUDAStruct
 {
 
-__host__ CubeMap* load_cube_map(const char* filename) {
+__host__ CUDAStruct::Texture* load_texture_device(const char* filename) {
     int channels;
     int width, height;
     unsigned char* img
         = stbi_load(filename, &width, &height, &channels, 3); // Load as RGB
     glm::vec3* colors = new glm::vec3[width * height];
+    if (!img) {
+        printf("Failed to load texture \n");
+        exit(1);
+    }
     for (int i = 0; i < width * height; ++i) {
         colors[i] = glm::vec3(
             img[i * 3] / 255.0f,
@@ -59,7 +64,7 @@ __host__ CubeMap* load_cube_map(const char* filename) {
             img[i * 3 + 2] / 255.0f
         );
     }
-    CubeMap* cubeMap = new CubeMap();
+    Texture* cubeMap = new Texture();
     cubeMap->width = width;
     cubeMap->height = height;
     glm::vec3* data;
@@ -74,14 +79,14 @@ __host__ CubeMap* load_cube_map(const char* filename) {
         cudaMemcpyHostToDevice
     );
 
-    CubeMap* cubeMapDevice;
-    cudaMalloc(&cubeMapDevice, sizeof(CubeMap));
-    cudaMemcpy(cubeMapDevice, cubeMap, sizeof(CubeMap), cudaMemcpyHostToDevice);
+    Texture* textureDevice;
+    cudaMalloc(&textureDevice, sizeof(Texture));
+    cudaMemcpy(textureDevice, cubeMap, sizeof(Texture), cudaMemcpyHostToDevice);
 
     free(colors);
     free(img);
     free(cubeMap);
-    return cubeMapDevice;
+    return textureDevice;
 }
 
 inline __device__ double SpherePrimitive_SDF(
@@ -216,7 +221,8 @@ __device__ glm::vec3 environment_light(
 }
 
 // entirely written by chatgipidy
-__device__ glm::vec2 direction_to_environment_map_uv(const glm::vec3& direction) {
+__device__ glm::vec2 direction_to_environment_map_uv(const glm::vec3& direction
+) {
     // Convert direction to spherical coordinates
     float longitude = atan2(
         direction.z, direction.x
@@ -260,9 +266,6 @@ __device__ glm::vec3 evaluate_light_path(
     const CUDAStruct::Scene* scene
 ) {
 
-    if (num_hits != 0) {
-        // printf("Num hits: %d\n", num_hits);
-    }
     glm::vec3 incomingLight{0};
 
     // if ray bounced off a surface and never hit anything after
@@ -346,6 +349,7 @@ __device__ double get_closest_distance(
     return minDistance;
 }
 
+// FIXME: fix normal computation
 __device__ glm::vec3 compute_normal(
     const glm::vec4& p,
     const CUDAStruct::Scene* scene
@@ -383,6 +387,39 @@ __device__ glm::vec3 compute_normal(
     return normal;
 }
 
+inline __device__ glm::vec2 normal_to_polar_coordinates(const glm::vec3& normal
+) {
+    // Convert normal to spherical coordinates
+    float longitude
+        = atan2(normal.z, normal.x); // Angle in XY plane from positive X axis
+    float latitude = acos(normal.y); // Angle from positive Y axis
+
+    // Normalize longitude to range [0, 2*pi)
+    if (longitude < 0.0f)
+        longitude += glm::two_pi<float>();
+
+    return glm::vec2(longitude, latitude);
+}
+
+inline __device__ glm::vec3 sample_texture(
+    const CUDAStruct::Texture* texture,
+    const glm::vec2& uv
+) {
+    int x = glm::clamp((int)(uv.x * texture->width), 0, texture->width - 1);
+    int y = glm::clamp((int)(uv.y * texture->height), 0, texture->height - 1);
+
+    int index = y * texture->width + x;
+    return texture->data[index];
+}
+
+inline __device__ glm::vec3 sample_sphere_texture(
+    const CUDAStruct::Texture* texture,
+    const glm::vec3& normal
+) {
+    glm::vec2 uv = normal_to_polar_coordinates(normal);
+    return sample_texture(texture, uv);
+}
+
 // Get the closest intersection, returns true if hit something and stores the
 // intersection in the buffer
 __device__ bool get_closest_intersection(
@@ -395,9 +432,9 @@ __device__ bool get_closest_intersection(
     curandState* rngState
 ) {
     float totalDistanceTraveled = 0.0;
-    const int MAX_NUM_STEPS = 8;
-    const float MIN_HIT_DISTANCE = .01;
-    const float MAX_TRACE_DISTANCE = 20; // max float value on order of 10e38
+    const int MAX_NUM_STEPS = 16;
+    const float MIN_HIT_DISTANCE = .005;
+    const float MAX_TRACE_DISTANCE = 50; // max float value on order of 10e38
 
     // translate camera position from euclidean to hyperbolic (translated to
     // hyperboloid)
@@ -442,12 +479,25 @@ __device__ bool get_closest_intersection(
                     intersection, rngState
                 );
 
-            intersection->mat_albedo = closestPrimitive->mat_albedo;
+            if (closestPrimitive->texture_device) {
+                glm::vec3 albedo = sample_sphere_texture(
+                    closestPrimitive->texture_device, normal
+                );
+                intersection->mat_albedo = albedo;
+                intersection->mat_emissionColor = glm::vec3(0, 0, 0);
+            } else {
+                intersection->mat_albedo = closestPrimitive->mat_albedo;
+            }
+
             intersection->mat_emissionColor
                 = closestPrimitive->mat_emissionColor;
             intersection->mat_emissionStrength
                 = closestPrimitive->mat_emissionStrength;
             intersection->mat_roughness = closestPrimitive->mat_roughness;
+
+            // intersection->mat_albedo = normal; // debug
+            // intersection->mat_emissionColor = glm::vec3(0, 0, 0);
+            // intersection->mat_emissionStrength = 0;
 
             return true;
         } else if (!CUDAMath::isH3Point(marchPos) 

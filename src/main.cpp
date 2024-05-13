@@ -95,7 +95,7 @@ int main() {
 #if CUDA
     RendererCUDA::init();
     CUDAStruct::Scene scene;
-    scene.cubemap = CUDAStruct::load_cube_map("../resource/starmap_g8k.jpg");
+    scene.cubemap = CUDAStruct::load_texture_device("../resource/starmap_g8k.jpg");
 
     Rotor rotor;
 #else
@@ -216,6 +216,12 @@ int main() {
             sun.mat_roughness = 0.5;
             sun.mat_emissionColor = {1, 1, 0};
             sun.mat_emissionStrength = 0.3;
+
+
+            //TODO: fix texture -- fix normal
+            // sun.texture_device = CUDAStruct::load_texture_device(
+            //     "../resource/nasa_sun.png"
+            // );
 
             solar_system.add(sun);
             // Mercury

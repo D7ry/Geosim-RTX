@@ -1,8 +1,8 @@
 #pragma once
 #include <iostream>
 
-#include <glm/glm.hpp>
 #include "lib/stb_image.h"
+#include <glm/glm.hpp>
 
 namespace CudaPlayground
 {
@@ -19,14 +19,16 @@ class Image;
 
 namespace CUDAStruct
 {
-struct CubeMap {
+
+struct Texture
+{
     int width;
     int height;
     glm::vec3* data;
 };
 
 // load up a cubemap into GPU memory
-CubeMap* load_cube_map(const char* filename);
+Texture* load_texture_device(const char* filename);
 
 struct Intersection
 {
@@ -50,8 +52,6 @@ struct Intersection
     };
 };
 
-
-
 struct SpherePrimitive
 {
 
@@ -64,6 +64,8 @@ struct SpherePrimitive
     glm::vec3 position{0.f}; // local space
     float radius{1.f};
 
+    Texture* texture_device; // ptr to texture in device memory, nullptr if no
+                             // texture in which case albedo is used
 };
 
 struct Geometry
@@ -93,7 +95,7 @@ struct Scene
 {
     CUDAStruct::Geometry geometries[MAX_GEOMETRY];
     size_t num_geometries{0};
-    CUDAStruct::CubeMap* cubemap;
+    CUDAStruct::Texture* cubemap;
     float dayTime = 0.3f; // 0.0f - 1.0f
 
     void add(const CUDAStruct::Geometry& object) {
@@ -140,8 +142,8 @@ struct Scene
 
 namespace RendererCUDA
 {
-    void check_device();
-    void render(const CUDAStruct::Scene* scene, const Camera* camera, Image* image);
-    void init();
-    void cleanup();
+void check_device();
+void render(const CUDAStruct::Scene* scene, const Camera* camera, Image* image);
+void init();
+void cleanup();
 } // namespace RendererCUDA
