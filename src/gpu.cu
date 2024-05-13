@@ -259,13 +259,14 @@ __device__ glm::vec3 sample_environment_map(
     return scene->cubemap->data[index];
 }
 
+// TODO: fix PBR
 __device__ glm::vec3 evaluate_light_path(
     glm::vec3 origin,
     CUDAStruct::Intersection* hits,
     int num_hits,
     const CUDAStruct::Scene* scene
 ) {
-    if (num_hits >= 1) {
+    if (num_hits >= 1 && hits[0].mat_is_emissive) {
         return hits[0].mat_albedo;
     }
 
@@ -285,7 +286,8 @@ __device__ glm::vec3 evaluate_light_path(
 
     if (reachedEnvironment) {
         incomingLight += environment_light(environmentDir, scene);
-        incomingLight += sample_environment_map(environmentDir, scene);
+        incomingLight
+            += sample_environment_map(environmentDir, scene);
     }
 
     // reverse iterate from the start of a path of light
@@ -297,8 +299,8 @@ __device__ glm::vec3 evaluate_light_path(
             = hit->mat_emissionStrength * hit->mat_emissionColor;
 
         // cos(theta) term
-        const float lightStrength{
-            1 // glm::max(0.f, glm::dot(hit.normal, -hit.incidentDir))
+        const float lightStrength{1
+            // glm::max(0.f, glm::dot(hit->normal, -hit->incidentDir))
         };
 
         incomingLight
@@ -403,7 +405,7 @@ inline __device__ glm::vec2 normal_to_polar_coordinates(const glm::vec3& normal
     // Map spherical coordinates to UV space
     float u = (azimuth + PI) / (2 * PI); // Normalize azimuth to [0,1]
     float v = polar / PI;                // Normalize polar angle to [0,1]
-    
+
     return glm::vec2(u, v);
 }
 
@@ -490,12 +492,13 @@ __device__ bool get_closest_intersection(
                     closestPrimitive->texture_device, normal
                 );
                 intersection->mat_albedo = texture_sample;
-                intersection->mat_emissionColor = texture_sample;
-                intersection->mat_emissionStrength = 0;
+                intersection->mat_emissionColor = glm::vec3(1, 1, 1);
+                intersection->mat_emissionStrength = 1;
             } else {
                 intersection->mat_albedo = closestPrimitive->mat_albedo;
             }
 
+            intersection->mat_is_emissive = closestPrimitive->mat_is_emissive;
             intersection->mat_emissionColor
                 = closestPrimitive->mat_emissionColor;
             intersection->mat_emissionStrength

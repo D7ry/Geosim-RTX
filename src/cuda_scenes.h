@@ -29,6 +29,7 @@ inline void solar_system(CUDAStruct::Scene* scene) {
     sun.mat_roughness = 0.5;
     sun.mat_emissionColor = {1, 1, 0};
     sun.mat_emissionStrength = 0.3;
+    sun.mat_is_emissive = true;
 
     sun.texture_device
         = CUDAStruct::load_texture_device("../resource/nasa_sun.png");

@@ -38,6 +38,7 @@ struct Intersection
     float mat_roughness{1.f};
 
     glm::vec3 mat_emissionColor{1.f};
+    bool mat_is_emissive{false};
     float mat_emissionStrength{0.f};
     // const RayIntersection math;
 
@@ -62,6 +63,8 @@ struct SpherePrimitive
 
     glm::vec3 mat_emissionColor{1.f};
     float mat_emissionStrength{0.f};
+
+    bool mat_is_emissive{false};
 
     glm::vec3 position{0.f}; // local space
     float radius{1.f};
