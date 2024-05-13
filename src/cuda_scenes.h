@@ -1,5 +1,6 @@
 #pragma once
 #include "gpu.h"
+#include <random>
 
 namespace CUDAScenes
 {
@@ -7,12 +8,52 @@ namespace CUDAScenes
 using Geometry = CUDAStruct::Geometry;
 using Sphere = CUDAStruct::SpherePrimitive;
 
+float prng(float min, float max) {
+    std::random_device rd;  // Obtain a random number from hardware
+    std::mt19937 eng(rd()); // Seed the generator
+    std::uniform_real_distribution<float> distr(min, max); // Define the range
 
-inline void random_objects(CUDAStruct::Scene* scene) {}
+    return distr(eng); // Generate and return a random float
+}
+
+inline void random_objects(CUDAStruct::Scene* scene, int num_objects) {
+
+    Geometry* randomObject = nullptr;
+    while (num_objects > 0) {
+        if (randomObject == nullptr) {
+            randomObject = new Geometry();
+        }
+        Sphere randomSphere;
+        randomSphere.position = {prng(-2, 2), prng(-2, 2), prng(-1, 1)};
+        randomSphere.radius = prng(0.2, 0.5);
+
+        randomSphere.mat_albedo
+            = {rand() % 70 / 100.f, rand() % 70 / 100.f, rand() % 70 / 100.f};
+        randomSphere.mat_roughness = rand() % 100 / 100.f;
+        randomSphere.mat_emissionColor
+            = {rand() % 100 / 100.f, rand() % 100 / 100.f, rand() % 100 / 100.f
+            };
+        randomSphere.mat_emissionStrength = rand() % 50 / 100.f;
+        randomObject->add(randomSphere);
+        num_objects--;
+        if (randomObject->num_spheres == 10) {
+            randomObject->position = {0, 0, -1.5};
+            scene->add(*randomObject);
+            free(randomObject);
+            randomObject = nullptr;
+        }
+    }
+    if (randomObject != nullptr) {
+        randomObject->position = {0, 0, -1.5};
+        scene->add(*randomObject);
+        free(randomObject);
+    }
+}
 
 inline void jonathan_balls(CUDAStruct::Scene* scene) {
     scene->cubemap
-        = CUDAStruct::load_texture_device("../resource/env_map.webp");
+        = CUDAStruct::load_texture_device("../resource/2k_neptune.jpg"
+        );
 
     Geometry object;
 

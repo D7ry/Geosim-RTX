@@ -18,13 +18,6 @@
 #include <memory>
 #include <random>
 
-float prng(float min, float max) {
-    std::random_device rd;  // Obtain a random number from hardware
-    std::mt19937 eng(rd()); // Seed the generator
-    std::uniform_real_distribution<float> distr(min, max); // Define the range
-
-    return distr(eng); // Generate and return a random float
-}
 
 // settings and controls
 static constexpr sf::Keyboard::Key FORWARD{sf::Keyboard::Key::W};
@@ -193,7 +186,7 @@ int main() {
 
         const bool solar_system = false;
         const bool jonathan_balls = true;
-        const bool random_objects = false; // FIXME: fix it
+        const bool random_objects = true; // FIXME: fix it
 
         if (solar_system) { // solar system
             CUDAScenes::solar_system(&scene);
@@ -204,33 +197,7 @@ int main() {
         }
 
         if (random_objects) {
-            for (int i = 0; i < 3; i++) {
-                Geometry randomObject;
-                for (int j = 0; j < 3; j++) {
-
-                    Sphere randomSphere;
-                    randomSphere.position
-                        = {prng(-2, 2), prng(-2, 2), prng(-1, 1)};
-                    randomSphere.radius = prng(0.2, 0.5);
-
-                    randomSphere.mat_albedo
-                        = {rand() % 70 / 100.f,
-                           rand() % 70 / 100.f,
-                           rand() % 70 / 100.f};
-                    randomSphere.mat_roughness = rand() % 100 / 100.f;
-                    randomSphere.mat_emissionColor
-                        = {rand() % 100 / 100.f,
-                           rand() % 100 / 100.f,
-                           rand() % 100 / 100.f};
-                    randomSphere.mat_emissionStrength = rand() % 50 / 100.f;
-                    randomObject.add(randomSphere);
-                }
-                randomObject.position
-                    = {rand() % 10 - 5, rand() % 10 - 5, rand() % 10 - 5};
-
-                randomObject.position = {0, 0, -1.5};
-                scene.add(randomObject);
-            }
+            CUDAScenes::random_objects(&scene, 30);
         }
 
 #else
